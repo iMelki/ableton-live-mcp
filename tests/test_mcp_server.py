@@ -4,6 +4,7 @@ import json
 import os
 import socket
 import sqlite3
+import sys
 import time
 from pathlib import Path
 
@@ -29,6 +30,22 @@ class FakeBridge:
     def request(self, method, params):
         self.calls.append((method, params))
         return {"method": method, "params": params}
+
+
+def test_generated_tool_docs_are_up_to_date():
+    root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(root / "scripts"))
+    from generate_tool_docs import render
+
+    docs_path = root / "docs" / "tools.md"
+    assert docs_path.read_text(encoding="utf-8") == render(), "docs/tools.md is stale; regenerate with `python scripts/generate_tool_docs.py`"
+
+
+def test_all_tools_have_non_empty_descriptions():
+    server = make_server(FakeBridge())
+    response = server.handle({"jsonrpc": "2.0", "id": 8, "method": "tools/list"})
+    empty = [tool["name"] for tool in response["result"]["tools"] if not tool["description"].strip()]
+    assert empty == []
 
 
 def test_lists_general_purpose_tools():
