@@ -353,3 +353,24 @@ See `CONTRIBUTING.md` for the full dev workflow. Key things worth knowing:
   or the Max for Live devices can't be fully verified without a real
   Ableton Live install — say so explicitly in a PR if you couldn't test
   against real Ableton, since this project edits users' Live Sets directly.
+
+## mypy: surveyed, not yet adopted
+
+A survey with `mypy --ignore-missing-imports` across the pure-Python modules
+(everything except `Ableton_Live_MCP/bridge.py`, which is fundamentally a
+dynamic-reflection bridge to Live's embedded API and a poor fit for static
+typing) found ~20 findings across `server.py`, `prompt_audit.py`,
+`agent_m4l.py`, `validate.py`, `visual_capture.py`, and `similar_sounds.py`.
+None inspected so far are real runtime bugs — they're typing-precision gaps:
+unannotated heterogeneous dict literals causing mypy to over-narrow a
+variable's inferred type (fix: add an explicit `dict[str, Any]` annotation
+at the first assignment), `os.environ`'s `_Environ[str]` not matching a
+`dict[str, str]` parameter type (fix: type it `Mapping[str, str]`), and
+platform-conditional `ctypes`/Pillow typeshed strictness on Windows-only
+code paths. Worth noting: `validate.py`'s `mcp_tool_schema_status()`
+already runtime-checks that `live_agent_audio_tap`/`live_transport`/
+`live_ping`'s schemas match expected shape — independent confirmation this
+project already takes the "tool schema silently drifts" bug class
+seriously via a different mechanism than `tests/test_schema_consistency.py`.
+Adopting mypy cleanly needs a dedicated pass to verify and fix each finding
+individually, not something to fold into an unrelated change.
