@@ -72,10 +72,13 @@ class StdioMcpServer:
                 arguments = params.get("arguments", {}) or {}
                 _validate(arguments, tool.input_schema, "arguments")
                 result = tool.handler(arguments)
-                return self._result(req_id, {
-                    "content": [{"type": "text", "text": json.dumps(result, separators=(",", ":"))}],
-                    "structuredContent": result,
-                })
+                return self._result(
+                    req_id,
+                    {
+                        "content": [{"type": "text", "text": json.dumps(result, separators=(",", ":"))}],
+                        "structuredContent": result,
+                    },
+                )
             raise ValueError(f"Unsupported MCP method: {method}")
         except Exception as exc:  # MCP requires structured errors instead of crashing stdio.
             return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32000, "message": str(exc)}}

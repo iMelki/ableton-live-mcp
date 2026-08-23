@@ -26,11 +26,13 @@ def _measure(client: AbletonBridgeClient, name: str, request: RequestFactory, it
         start = time.perf_counter()
         result = client.request(method, params)
         elapsed_ms = (time.perf_counter() - start) * 1000
-        samples.append({
-            "ms": round(elapsed_ms, 3),
-            "bytes": _response_size(result),
-            "method": method,
-        })
+        samples.append(
+            {
+                "ms": round(elapsed_ms, 3),
+                "bytes": _response_size(result),
+                "method": method,
+            }
+        )
     timings = [sample["ms"] for sample in samples]
     sizes = [sample["bytes"] for sample in samples]
     return {
@@ -57,99 +59,185 @@ def _skip(name: str, exc: Exception) -> dict[str, Any]:
 def _benchmarks(include_browser: bool) -> list[tuple[str, RequestFactory, bool]]:
     items: list[tuple[str, RequestFactory, bool]] = [
         ("ping", lambda: ("ping", {}), False),
-        ("song_compact_get", lambda: ("get", {
-            "ref": {"path": "live_set"},
-            "properties": ["tempo", "signature_numerator", "signature_denominator", "current_song_time"],
-            "children": {"tracks": 8, "scenes": 8, "return_tracks": 4},
-        }), False),
-        ("set_summary_existing_project", lambda: ("set_summary", {
-            "track_limit": 16,
-            "clip_slot_limit": 4,
-            "device_limit": 4,
-            "arrangement_clip_limit": 4,
-            "include_return_tracks": True,
-            "include_master_track": True,
-        }), False),
-        ("set_summary_targeted_track", lambda: ("set_summary", {
-            "track_query": "Audit Existing MIDI",
-            "track_limit": 1,
-            "clip_slot_limit": 2,
-            "device_limit": 2,
-            "arrangement_clip_limit": 4,
-            "include_return_tracks": False,
-            "include_master_track": False,
-        }), True),
-        ("batch_status", lambda: ("batch", {
-            "operations": [
-                {"method": "get", "params": {"ref": {"path": "live_set"}, "properties": ["tempo"]}},
-                {"method": "children", "params": {"ref": {"path": "live_set"}, "child": "tracks", "limit": 4}},
-                {"method": "eval", "params": {"expr": "len(song.tracks), len(song.scenes), len(song.return_tracks)"}},
-            ],
-        }), False),
-        ("agent_m4l_command_update", lambda: ("agent_m4l_device", {
-            "role": "audio_effect",
-            "instance_id": "Benchmark M4L Direct",
-            "command": "update",
-            "load": False,
-            "udp": False,
-            "id": "benchmark-m4l-update",
-            "patch": {
-                "device_width": 280,
-                "device_height": 130,
-                "objects": [{"id": "probe_value", "text": "flonum", "presentation_rect": [12, 12, 80, 22]}],
-                "connections": [],
-            },
-        }), False),
-        ("device_parameter_filter", lambda: ("device_parameters", {
-            "ref": {"path": "live_set tracks 0 devices 0"},
-            "query": "filter",
-            "limit": 8,
-        }), True),
-        ("clip_warp_marker_inspect", lambda: ("clip_warp_markers", {
-            "ref": {"path": "live_set tracks 0 arrangement_clips 0"},
-            "limit": 16,
-        }), True),
-        ("arrangement_capability_summary", lambda: ("eval", {
-            "expr": "sorted([n for n in dir(song) if 'track' in n.lower() or 'scene' in n.lower() or 'clip' in n.lower()])[:60]",
-            "max_items": 80,
-        }), False),
+        (
+            "song_compact_get",
+            lambda: (
+                "get",
+                {
+                    "ref": {"path": "live_set"},
+                    "properties": ["tempo", "signature_numerator", "signature_denominator", "current_song_time"],
+                    "children": {"tracks": 8, "scenes": 8, "return_tracks": 4},
+                },
+            ),
+            False,
+        ),
+        (
+            "set_summary_existing_project",
+            lambda: (
+                "set_summary",
+                {
+                    "track_limit": 16,
+                    "clip_slot_limit": 4,
+                    "device_limit": 4,
+                    "arrangement_clip_limit": 4,
+                    "include_return_tracks": True,
+                    "include_master_track": True,
+                },
+            ),
+            False,
+        ),
+        (
+            "set_summary_targeted_track",
+            lambda: (
+                "set_summary",
+                {
+                    "track_query": "Audit Existing MIDI",
+                    "track_limit": 1,
+                    "clip_slot_limit": 2,
+                    "device_limit": 2,
+                    "arrangement_clip_limit": 4,
+                    "include_return_tracks": False,
+                    "include_master_track": False,
+                },
+            ),
+            True,
+        ),
+        (
+            "batch_status",
+            lambda: (
+                "batch",
+                {
+                    "operations": [
+                        {"method": "get", "params": {"ref": {"path": "live_set"}, "properties": ["tempo"]}},
+                        {"method": "children", "params": {"ref": {"path": "live_set"}, "child": "tracks", "limit": 4}},
+                        {"method": "eval", "params": {"expr": "len(song.tracks), len(song.scenes), len(song.return_tracks)"}},
+                    ],
+                },
+            ),
+            False,
+        ),
+        (
+            "agent_m4l_command_update",
+            lambda: (
+                "agent_m4l_device",
+                {
+                    "role": "audio_effect",
+                    "instance_id": "Benchmark M4L Direct",
+                    "command": "update",
+                    "load": False,
+                    "udp": False,
+                    "id": "benchmark-m4l-update",
+                    "patch": {
+                        "device_width": 280,
+                        "device_height": 130,
+                        "objects": [{"id": "probe_value", "text": "flonum", "presentation_rect": [12, 12, 80, 22]}],
+                        "connections": [],
+                    },
+                },
+            ),
+            False,
+        ),
+        (
+            "device_parameter_filter",
+            lambda: (
+                "device_parameters",
+                {
+                    "ref": {"path": "live_set tracks 0 devices 0"},
+                    "query": "filter",
+                    "limit": 8,
+                },
+            ),
+            True,
+        ),
+        (
+            "clip_warp_marker_inspect",
+            lambda: (
+                "clip_warp_markers",
+                {
+                    "ref": {"path": "live_set tracks 0 arrangement_clips 0"},
+                    "limit": 16,
+                },
+            ),
+            True,
+        ),
+        (
+            "arrangement_capability_summary",
+            lambda: (
+                "eval",
+                {
+                    "expr": "sorted([n for n in dir(song) if 'track' in n.lower() or 'scene' in n.lower() or 'clip' in n.lower()])[:60]",
+                    "max_items": 80,
+                },
+            ),
+            False,
+        ),
     ]
     if include_browser:
-        items.extend([
-            ("browser_roots", lambda: ("browser_roots", {}), False),
-            ("browser_drum_search", lambda: ("browser_search", {
-                "query": "drum",
-                "roots": ["instruments", "drums"],
-                "limit": 8,
-                "max_depth": 5,
-                "max_visited": 4000,
-            }), False),
-            ("browser_sample_search", lambda: ("browser_search", {
-                "query": "cowbell",
-                "roots": ["drums", "samples", "user_library"],
-                "limit": 8,
-                "max_depth": 7,
-                "max_visited": 8000,
-            }), True),
-            ("browser_sample_first_good", lambda: ("browser_search", {
-                "query": "cowbell",
-                "roots": ["drums", "samples", "user_library"],
-                "limit": 1,
-                "max_depth": 7,
-                "max_visited": 8000,
-                "stop_on_limit": True,
-                "stop_score": 1,
-            }), True),
-            ("browser_plugin_search", lambda: ("browser_search", {
-                "query": "",
-                "roots": ["plugins"],
-                "limit": 8,
-                "max_depth": 4,
-                "max_visited": 2000,
-                "include_folders": True,
-                "loadable_only": False,
-            }), True),
-        ])
+        items.extend(
+            [
+                ("browser_roots", lambda: ("browser_roots", {}), False),
+                (
+                    "browser_drum_search",
+                    lambda: (
+                        "browser_search",
+                        {
+                            "query": "drum",
+                            "roots": ["instruments", "drums"],
+                            "limit": 8,
+                            "max_depth": 5,
+                            "max_visited": 4000,
+                        },
+                    ),
+                    False,
+                ),
+                (
+                    "browser_sample_search",
+                    lambda: (
+                        "browser_search",
+                        {
+                            "query": "cowbell",
+                            "roots": ["drums", "samples", "user_library"],
+                            "limit": 8,
+                            "max_depth": 7,
+                            "max_visited": 8000,
+                        },
+                    ),
+                    True,
+                ),
+                (
+                    "browser_sample_first_good",
+                    lambda: (
+                        "browser_search",
+                        {
+                            "query": "cowbell",
+                            "roots": ["drums", "samples", "user_library"],
+                            "limit": 1,
+                            "max_depth": 7,
+                            "max_visited": 8000,
+                            "stop_on_limit": True,
+                            "stop_score": 1,
+                        },
+                    ),
+                    True,
+                ),
+                (
+                    "browser_plugin_search",
+                    lambda: (
+                        "browser_search",
+                        {
+                            "query": "",
+                            "roots": ["plugins"],
+                            "limit": 8,
+                            "max_depth": 4,
+                            "max_visited": 2000,
+                            "include_folders": True,
+                            "loadable_only": False,
+                        },
+                    ),
+                    True,
+                ),
+            ]
+        )
     return items
 
 

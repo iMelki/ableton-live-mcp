@@ -86,13 +86,15 @@ def _template_dirs_from_live_path(path: Path) -> list[Path]:
 
     candidates: list[Path] = []
     for base in bases:
-        candidates.extend([
-            base,
-            base / "Contents" / "App-Resources" / "Misc" / "Max Devices",
-            base / "App-Resources" / "Misc" / "Max Devices",
-            base / "Resources" / "Misc" / "Max Devices",
-            base / "Misc" / "Max Devices",
-        ])
+        candidates.extend(
+            [
+                base,
+                base / "Contents" / "App-Resources" / "Misc" / "Max Devices",
+                base / "App-Resources" / "Misc" / "Max Devices",
+                base / "Resources" / "Misc" / "Max Devices",
+                base / "Misc" / "Max Devices",
+            ]
+        )
     return _dedupe(candidates)
 
 

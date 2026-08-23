@@ -10,12 +10,14 @@ def main() -> int:
     parser.add_argument("--include-self", action="store_true")
     args = parser.parse_args()
 
-    result = find_similar_sounds({
-        "base": args.base,
-        "db_path": args.db_path,
-        "limit": args.limit,
-        "include_self": args.include_self,
-    })
+    result = find_similar_sounds(
+        {
+            "base": args.base,
+            "db_path": args.db_path,
+            "limit": args.limit,
+            "include_self": args.include_self,
+        }
+    )
     base = result["base"]
     print("database: %s" % result["database"])
     print("base: %(file_id)s %(name)s (file_kind=%(file_kind)s, fe_version=%(fe_version)s)" % base)

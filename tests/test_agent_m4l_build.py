@@ -4,7 +4,20 @@ import json
 from pathlib import Path
 
 import agent_m4l
-from agent_m4l import audio_bus_names, build_amxd, build_pool, command_file, infer_device_height, infer_device_width, inject_webui_bootstrap, make_host_patch, replace_ptch_chunk, status_file, udp_port, write_webui
+from agent_m4l import (
+    audio_bus_names,
+    build_amxd,
+    build_pool,
+    command_file,
+    infer_device_height,
+    infer_device_width,
+    inject_webui_bootstrap,
+    make_host_patch,
+    replace_ptch_chunk,
+    status_file,
+    udp_port,
+    write_webui,
+)
 
 
 def test_agent_m4l_host_patch_contains_runtime_and_role_io():
@@ -102,14 +115,24 @@ def test_agent_m4l_infers_device_bounds_from_presentation_bounds():
     assert infer_device_height() == 170
     assert infer_device_width({"device_width": 760}) == 760
     assert infer_device_height({"device_height": 260}) == 260
-    assert infer_device_width({
-        "objects": [{"id": "wide_knob", "presentation_rect": [20, 8, 520, 60]}],
-        "webui": {"id": "panel", "presentation_rect": [560, 0, 260, 120]},
-    }) == 840
-    assert infer_device_height({
-        "objects": [{"id": "wide_knob", "presentation_rect": [20, 8, 520, 60]}],
-        "webui": {"id": "panel", "presentation_rect": [560, 160, 260, 140]},
-    }) == 320
+    assert (
+        infer_device_width(
+            {
+                "objects": [{"id": "wide_knob", "presentation_rect": [20, 8, 520, 60]}],
+                "webui": {"id": "panel", "presentation_rect": [560, 0, 260, 120]},
+            }
+        )
+        == 840
+    )
+    assert (
+        infer_device_height(
+            {
+                "objects": [{"id": "wide_knob", "presentation_rect": [20, 8, 520, 60]}],
+                "webui": {"id": "panel", "presentation_rect": [560, 160, 260, 140]},
+            }
+        )
+        == 320
+    )
 
 
 def test_agent_m4l_host_does_not_impose_fixed_pass_through():
@@ -164,10 +187,7 @@ def test_agent_m4l_builds_role_specific_amxd_wrappers(tmp_path):
 def test_agent_m4l_uses_discovered_template_dir(monkeypatch, tmp_path):
     template_dir = tmp_path / "templates"
     template_dir.mkdir()
-    template = (
-        b"ampf\x04\x00\x00\x00iiiimeta\x04\x00\x00\x00\x00\x00\x00\x00"
-        b"ptch\x03\x00\x00\x00oldTAIL"
-    )
+    template = b"ampf\x04\x00\x00\x00iiiimeta\x04\x00\x00\x00\x00\x00\x00\x00ptch\x03\x00\x00\x00oldTAIL"
     (template_dir / "Max Instrument.amxd").write_bytes(template)
     monkeypatch.setenv("ABLETON_MAX_DEVICE_TEMPLATE_DIR", str(template_dir))
     patch_path = tmp_path / "instrument.maxpat"
@@ -237,7 +257,7 @@ def test_agent_m4l_host_runtime_supports_ui_and_value_updates():
     assert "webui_read_exhausted" in source
     assert "webUiReadRequest" in source
     assert '"readfile" && read.fallback_path' in source
-    assert "web_\" + key + \"_read_message" in source
+    assert 'web_" + key + "_read_message' in source
     assert "handleTaggedWebUiMessage" in source
     assert "webUiIdByTag" in source
     assert "markWebUiLoaded" in source
@@ -247,7 +267,7 @@ def test_agent_m4l_host_runtime_supports_ui_and_value_updates():
     assert "presentation_rect" in source
     assert "scriptSendBox" in source
     assert "setBoxOnlyAttr" in source
-    assert "script\", \"newdefault\"" in source
+    assert 'script", "newdefault"' in source
     assert "setattr" in source
     assert "sendtoback" in source
     assert "webMessageOutlet" in source
@@ -262,7 +282,7 @@ def test_agent_m4l_host_runtime_supports_ui_and_value_updates():
     assert "state.live_api_observers_enabled" in source
     assert "pollTask = new Task(handlePollTask, this)" in source
     assert "schedulePollTask(FALLBACK_POLL_INTERVAL)" in source
-    assert "handleActivityWake(\"task\")" in source
+    assert 'handleActivityWake("task")' in source
     assert "function handleOsc(args)" in source
     assert "function msg_string(value)" in source
     assert "deferred_raw_commands_dropped" in source
@@ -369,7 +389,7 @@ def test_agent_m4l_host_runtime_supports_ui_and_value_updates():
     assert "webRouterById" in source
     assert "webObjectNameById" in source
     assert "webui.reuse === false" in source
-    assert "command.command === \"set\"" in source
+    assert 'command.command === "set"' in source
     assert "applyValues" in source
     assert "set_silent" in source
     assert "param_silent" in source
@@ -412,15 +432,15 @@ def test_agent_m4l_host_runtime_supports_ui_and_value_updates():
     assert 'poller.message("int", 1)' in source
     assert 'metro.message("start")' in source
     assert 'poller.message("start")' in source
-    assert 'pollCommandFile();' in source
+    assert "pollCommandFile();" in source
     assert "function msg_int(value)" in source
     assert "function msg_float(value)" in source
     assert "if (pendingWebUiReads.length)" in source
     assert "shouldSendToggleValue" in source
     assert 'obj.message("int", Math.round(value) ? 1 : 0)' in source
     assert "shouldOutputStoredValue" in source
-    assert "obj.message(\"set\", value)" in source
-    assert "obj.message(\"bang\")" in source
+    assert 'obj.message("set", value)' in source
+    assert 'obj.message("bang")' in source
     assert "connectPatchlines" in source
     assert '"audio-in-l", "audio-in-r", "audio-out-l", "audio-out-r"' in source
     assert "connection_errors" in source
@@ -465,15 +485,18 @@ def test_agent_m4l_write_webui_generates_jweb_page(tmp_path, monkeypatch):
     source_asset = tmp_path / "source" / "three.module.min.js"
     source_asset.parent.mkdir()
     source_asset.write_text("export const threeReady = true;", encoding="utf-8")
-    result = write_webui("Filter", {
-        "title": "Filter",
-        "controls": [{"id": "cutoff", "label": "Cutoff", "value": 0.25}],
-        "assets": {
-            "lib/scene.js": "export const scene = true;",
-            "../unsafe name.txt": {"content": "safe"},
-            "assets/three.module.min.js": {"source_path": str(source_asset)},
+    result = write_webui(
+        "Filter",
+        {
+            "title": "Filter",
+            "controls": [{"id": "cutoff", "label": "Cutoff", "value": 0.25}],
+            "assets": {
+                "lib/scene.js": "export const scene = true;",
+                "../unsafe name.txt": {"content": "safe"},
+                "assets/three.module.min.js": {"source_path": str(source_asset)},
+            },
         },
-    })
+    )
     html = Path(result["html_path"]).read_text(encoding="utf-8")
     js = Path(result["js_path"]).read_text(encoding="utf-8")
     assert "agent-m4l-bootstrap" in html
@@ -487,7 +510,7 @@ def test_agent_m4l_write_webui_generates_jweb_page(tmp_path, monkeypatch):
     assert "setTimeout(flush" in html
     assert 'data-param="cutoff"' in html
     assert "window.agentM4L" in js
-    assert "bindInlet(\"state\"" in js
+    assert 'bindInlet("state"' in js
     assert "agentm4lstate" in js
     assert "window.agentM4L.onstate = applyState" in js
     assert result["url"].startswith("file://")
@@ -557,13 +580,15 @@ def test_agent_m4l_sync_repairs_stale_console_print_wrappers(tmp_path, monkeypat
     install.mkdir(parents=True)
 
     patch = make_host_patch("audio_effect", "Console Test", "Console Test")
-    patch["patcher"]["boxes"].append({
-        "box": {
-            "id": "status",
-            "maxclass": "newobj",
-            "text": "print AgentM4L_audio_effect_Console_Test",
-        },
-    })
+    patch["patcher"]["boxes"].append(
+        {
+            "box": {
+                "id": "status",
+                "maxclass": "newobj",
+                "text": "print AgentM4L_audio_effect_Console_Test",
+            },
+        }
+    )
     patch["patcher"]["lines"].append({"patchline": {"source": ["js", 2], "destination": ["status", 0]}})
     patch_path = generated / "AgentM4L_audio_effect_Console_Test.maxpat"
     amxd_path = install / "AgentM4L_audio_effect_Console_Test.amxd"

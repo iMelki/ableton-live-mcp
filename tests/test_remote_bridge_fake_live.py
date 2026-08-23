@@ -51,39 +51,91 @@ class FakeBrowserItem:
 
 class FakeBrowser:
     def __init__(self):
-        self.instruments = FakeBrowserItem("instruments", folder=True, children=[
-            FakeBrowserItem("Analog", loadable=True, device=True),
-            FakeBrowserItem("Drum Rack", loadable=True, device=True),
-        ])
-        self.plugins = FakeBrowserItem("plugins", folder=True, children=[
-            FakeBrowserItem("AUv2", folder=True, children=[
-                FakeBrowserItem("Vendor", folder=True, children=[
-                    FakeBrowserItem("Plugin Synth", loadable=True, device=True),
-                ]),
-            ]),
-        ])
-        self.drums = FakeBrowserItem("drums", folder=True, children=[
-            FakeBrowserItem("Drum Hits", folder=True, children=[
-                FakeBrowserItem("Bell", folder=True, children=[
-                    FakeBrowserItem("505 Cowbell Hi.flac", loadable=True),
-                ]),
-            ]),
-        ])
-        self.user_library = FakeBrowserItem("User Library", folder=True, children=[
-            FakeBrowserItem("Presets", folder=True, children=[
-                FakeBrowserItem("Audio Effects", folder=True, children=[
-                    FakeBrowserItem("Max Audio Effect", folder=True, children=[
-                        FakeBrowserItem("AgentAudioTap", loadable=True, device=True),
-                        FakeBrowserItem("AgentM4L_audio_effect_Wobble", loadable=True, device=True),
-                    ]),
-                ]),
-                FakeBrowserItem("Instruments", folder=True, children=[
-                    FakeBrowserItem("Max Instrument", folder=True, children=[
-                        FakeBrowserItem("AgentM4L_instrument_Lead", loadable=True, device=True),
-                    ]),
-                ]),
-            ]),
-        ])
+        self.instruments = FakeBrowserItem(
+            "instruments",
+            folder=True,
+            children=[
+                FakeBrowserItem("Analog", loadable=True, device=True),
+                FakeBrowserItem("Drum Rack", loadable=True, device=True),
+            ],
+        )
+        self.plugins = FakeBrowserItem(
+            "plugins",
+            folder=True,
+            children=[
+                FakeBrowserItem(
+                    "AUv2",
+                    folder=True,
+                    children=[
+                        FakeBrowserItem(
+                            "Vendor",
+                            folder=True,
+                            children=[
+                                FakeBrowserItem("Plugin Synth", loadable=True, device=True),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        )
+        self.drums = FakeBrowserItem(
+            "drums",
+            folder=True,
+            children=[
+                FakeBrowserItem(
+                    "Drum Hits",
+                    folder=True,
+                    children=[
+                        FakeBrowserItem(
+                            "Bell",
+                            folder=True,
+                            children=[
+                                FakeBrowserItem("505 Cowbell Hi.flac", loadable=True),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        )
+        self.user_library = FakeBrowserItem(
+            "User Library",
+            folder=True,
+            children=[
+                FakeBrowserItem(
+                    "Presets",
+                    folder=True,
+                    children=[
+                        FakeBrowserItem(
+                            "Audio Effects",
+                            folder=True,
+                            children=[
+                                FakeBrowserItem(
+                                    "Max Audio Effect",
+                                    folder=True,
+                                    children=[
+                                        FakeBrowserItem("AgentAudioTap", loadable=True, device=True),
+                                        FakeBrowserItem("AgentM4L_audio_effect_Wobble", loadable=True, device=True),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        FakeBrowserItem(
+                            "Instruments",
+                            folder=True,
+                            children=[
+                                FakeBrowserItem(
+                                    "Max Instrument",
+                                    folder=True,
+                                    children=[
+                                        FakeBrowserItem("AgentM4L_instrument_Lead", loadable=True, device=True),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        )
         self.loaded = []
         self.previewed = []
         self.stopped_preview = False
@@ -141,11 +193,13 @@ class FakeParameter:
 class FakeDevice:
     def __init__(self):
         self.name = "Compressor"
-        self.parameters = FakeVector([
-            FakeParameter("Device On", 1.0, quantized=True, items=["Off", "On"]),
-            FakeParameter("Threshold", 0.85),
-            FakeParameter("Ratio", 0.75),
-        ])
+        self.parameters = FakeVector(
+            [
+                FakeParameter("Device On", 1.0, quantized=True, items=["Off", "On"]),
+                FakeParameter("Threshold", 0.85),
+                FakeParameter("Ratio", 0.75),
+            ]
+        )
 
 
 class FakeEnvelope:
@@ -222,35 +276,31 @@ class FakeClip:
 
     def add_new_notes(self, specs):
         for spec in specs:
-            self._notes.append(types.SimpleNamespace(
-                note_id=FakeClip._next_note_id,
-                pitch=spec.pitch,
-                start_time=spec.start_time,
-                duration=spec.duration,
-                velocity=spec.velocity,
-                mute=spec.mute,
-                probability=1.0,
-                velocity_deviation=0.0,
-                release_velocity=64.0,
-            ))
+            self._notes.append(
+                types.SimpleNamespace(
+                    note_id=FakeClip._next_note_id,
+                    pitch=spec.pitch,
+                    start_time=spec.start_time,
+                    duration=spec.duration,
+                    velocity=spec.velocity,
+                    mute=spec.mute,
+                    probability=1.0,
+                    velocity_deviation=0.0,
+                    release_velocity=64.0,
+                )
+            )
             FakeClip._next_note_id += 1
 
     def remove_notes_extended(self, from_pitch, pitch_span, from_time, time_span):
         pitch_end = from_pitch + pitch_span
         time_end = from_time + time_span
-        self._notes = [
-            note for note in self._notes
-            if not (from_pitch <= note.pitch < pitch_end and from_time <= note.start_time < time_end)
-        ]
+        self._notes = [note for note in self._notes if not (from_pitch <= note.pitch < pitch_end and from_time <= note.start_time < time_end)]
 
     def remove_notes(self, from_time, from_pitch, time_span, pitch_span):
         self.legacy_remove_notes_called = True
         pitch_end = from_pitch + pitch_span
         time_end = from_time + time_span
-        self._notes = [
-            note for note in self._notes
-            if not (from_pitch <= note.pitch < pitch_end and from_time <= note.start_time < time_end)
-        ]
+        self._notes = [note for note in self._notes if not (from_pitch <= note.pitch < pitch_end and from_time <= note.start_time < time_end)]
 
     def apply_note_modifications(self, notes):
         updates = {note.note_id: note for note in notes}
@@ -361,14 +411,18 @@ class FakeSong:
         self.current_song_time = 0.0
         self.signature_numerator = 4
         self.signature_denominator = 4
-        self.tracks = FakeVector([
-            FakeTrack("Track 1", devices=[FakeDevice()], clip_slots=[FakeClipSlot(FakeClip("Clip 1")), FakeClipSlot()], arrangement_clips=[FakeClip("Arr Clip 1")]),
-            FakeTrack("Track 2", devices=[], clip_slots=[FakeClipSlot()], arrangement_clips=[]),
-        ])
+        self.tracks = FakeVector(
+            [
+                FakeTrack("Track 1", devices=[FakeDevice()], clip_slots=[FakeClipSlot(FakeClip("Clip 1")), FakeClipSlot()], arrangement_clips=[FakeClip("Arr Clip 1")]),
+                FakeTrack("Track 2", devices=[], clip_slots=[FakeClipSlot()], arrangement_clips=[]),
+            ]
+        )
         self.scenes = FakeVector([types.SimpleNamespace(name="Scene 1")])
-        self.return_tracks = FakeVector([
-            FakeTrack("A-Reverb"),
-        ])
+        self.return_tracks = FakeVector(
+            [
+                FakeTrack("A-Reverb"),
+            ]
+        )
         self.master_track = FakeTrack("Main")
         self.view = types.SimpleNamespace(selected_track=None)
         self.is_playing = False
@@ -435,11 +489,13 @@ def test_resolve_get_children_and_call(monkeypatch):
     bridge, song, _app = make_bridge(monkeypatch)
     assert bridge._resolve_path("live_set tracks 1").name == "Track 2"
 
-    result = bridge._rpc_get({
-        "ref": {"path": "live_set"},
-        "properties": ["tempo"],
-        "children": {"tracks": 1},
-    })
+    result = bridge._rpc_get(
+        {
+            "ref": {"path": "live_set"},
+            "properties": ["tempo"],
+            "children": {"tracks": 1},
+        }
+    )
     assert result["properties"]["tempo"] == 120.0
     assert len([item for item in result["children"]["tracks"] if not item.get("truncated")]) == 1
     assert result["children"]["tracks"][-1] == {"truncated": True}
@@ -462,12 +518,14 @@ def test_dispatch_normalizes_void_call_into_success_record(monkeypatch):
 
     # ...but the top-level dispatch path coerces the void return into a JSON
     # object so the MCP server never emits structuredContent: null.
-    response = bridge._dispatch({
-        "jsonrpc": "2.0",
-        "id": 7,
-        "method": "call",
-        "params": {"ref": {"path": "live_set tracks 0"}, "method": "delete_device", "args": [0]},
-    })
+    response = bridge._dispatch(
+        {
+            "jsonrpc": "2.0",
+            "id": 7,
+            "method": "call",
+            "params": {"ref": {"path": "live_set tracks 0"}, "method": "delete_device", "args": [0]},
+        }
+    )
     assert "error" not in response
     assert response["result"] == {"ok": True, "result": None}
     assert [device.name for device in song.tracks[0].devices] == []
@@ -577,10 +635,12 @@ def test_agent_audio_tap_can_opt_into_udp_command(monkeypatch):
     result = bridge._rpc_agent_audio_tap({"command": "start", "path": "tap.wav", "id": "abc", "udp": True})
 
     assert result["sent"] is True
-    assert sent == [(
-        b"/agent_audio_tap\x00\x00\x00\x00,ss\x00start\x00\x00\x00tap.wav\x00",
-        ("127.0.0.1", 17654),
-    )]
+    assert sent == [
+        (
+            b"/agent_audio_tap\x00\x00\x00\x00,ss\x00start\x00\x00\x00tap.wav\x00",
+            ("127.0.0.1", 17654),
+        )
+    ]
 
 
 def test_agent_audio_tap_start_can_use_preopened_path(monkeypatch):
@@ -608,12 +668,14 @@ def test_agent_audio_tap_setup_loads_on_master_and_solos_target(monkeypatch):
     song.tracks[1].devices.append(FakeDevice())
     song.tracks[1].devices[-1].name = "AgentAudioTap"
 
-    result = bridge._rpc_agent_audio_tap_setup({
-        "placement": "master",
-        "remove_existing": True,
-        "solo_track": {"path": "live_set tracks 0"},
-        "reset_time": 0,
-    })
+    result = bridge._rpc_agent_audio_tap_setup(
+        {
+            "placement": "master",
+            "remove_existing": True,
+            "solo_track": {"path": "live_set tracks 0"},
+            "reset_time": 0,
+        }
+    )
 
     assert result["target_track"] == "Main"
     assert result["loaded"] is True
@@ -639,10 +701,12 @@ def test_agent_audio_tap_setup_solos_resolved_track_by_canonical_path(monkeypatc
 
     monkeypatch.setattr(bridge, "_resolve", resolve)
 
-    bridge._rpc_agent_audio_tap_setup({
-        "placement": "master",
-        "solo_track": {"path": "live_set tracks 0"},
-    })
+    bridge._rpc_agent_audio_tap_setup(
+        {
+            "placement": "master",
+            "solo_track": {"path": "live_set tracks 0"},
+        }
+    )
 
     assert [track.solo for track in song.tracks] == [True, False]
 
@@ -693,17 +757,19 @@ def test_agent_m4l_device_writes_command_sends_udp_and_loads(monkeypatch):
         "objects": [{"id": "osc", "text": "cycle~ 110", "x": 160, "y": 140}],
         "connections": [],
     }
-    result = bridge._rpc_agent_m4l_device({
-        "role": "audio_effect",
-        "instance_id": "Wobble",
-        "device_name": "AgentM4L_audio_effect_Wobble",
-        "target_track": {"path": "live_set tracks 1"},
-        "patch": patch,
-        "webui": {"html_path": "/tmp/wobble/index.html", "presentation_rect": [0, 0, 320, 160]},
-        "device_width": 340,
-        "device_height": 180,
-        "id": "cmd1",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "audio_effect",
+            "instance_id": "Wobble",
+            "device_name": "AgentM4L_audio_effect_Wobble",
+            "target_track": {"path": "live_set tracks 1"},
+            "patch": patch,
+            "webui": {"html_path": "/tmp/wobble/index.html", "presentation_rect": [0, 0, 320, 160]},
+            "device_width": 340,
+            "device_height": 180,
+            "id": "cmd1",
+        }
+    )
 
     assert result["sent"] is True
     assert result["loaded"] is True
@@ -753,13 +819,15 @@ def test_agent_m4l_device_skips_udp_when_update_payload_is_too_large(monkeypatch
     monkeypatch.setattr(socket, "socket", FakeSocket)
     monkeypatch.setattr(module, "open", lambda path, mode: FakeFile(path, mode), raising=False)
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "instrument",
-        "instance_id": "Huge UI",
-        "load": False,
-        "patch": {"objects": [{"id": "big", "text": "comment " + ("x" * 70000)}]},
-        "id": "huge1",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "instrument",
+            "instance_id": "Huge UI",
+            "load": False,
+            "patch": {"objects": [{"id": "big", "text": "comment " + ("x" * 70000)}]},
+            "id": "huge1",
+        }
+    )
 
     assert result["sent"] is False
     assert result["udp_skipped"] is True
@@ -794,15 +862,17 @@ def test_agent_m4l_device_value_update_does_not_require_patch_or_load(monkeypatc
 
     monkeypatch.setattr(module, "open", lambda path, mode: FakeFile(path, mode), raising=False)
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "audio_effect",
-        "instance_id": "Wobble",
-        "command": "set",
-        "values": [{"id": "cutoff", "value": 0.72}],
-        "udp": False,
-        "load": False,
-        "id": "set1",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "audio_effect",
+            "instance_id": "Wobble",
+            "command": "set",
+            "values": [{"id": "cutoff", "value": 0.72}],
+            "udp": False,
+            "load": False,
+            "id": "set1",
+        }
+    )
 
     assert result["command"] == "set"
     assert result["sent"] is False
@@ -844,17 +914,19 @@ def test_agent_m4l_device_triggers_hidden_poll_parameter(monkeypatch):
 
     monkeypatch.setattr(module, "open", lambda path, mode: FakeFile(path, mode), raising=False)
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "instrument",
-        "instance_id": "Dynamic Poller Probe",
-        "device_name": "AgentM4L_instrument_Dynamic_Poller_Probe",
-        "command": "set",
-        "values": [{"id": "native_value", "value": 0.72}],
-        "target_track": {"path": "live_set tracks 1"},
-        "udp": False,
-        "load": False,
-        "id": "set-poll",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "instrument",
+            "instance_id": "Dynamic Poller Probe",
+            "device_name": "AgentM4L_instrument_Dynamic_Poller_Probe",
+            "command": "set",
+            "values": [{"id": "native_value", "value": 0.72}],
+            "target_track": {"path": "live_set tracks 1"},
+            "udp": False,
+            "load": False,
+            "id": "set-poll",
+        }
+    )
 
     assert result["triggered"] is True
     assert poll.value == 1.0
@@ -871,11 +943,13 @@ def test_agent_m4l_value_update_writes_file_with_recovery_patch(monkeypatch):
     bridge.song = lambda: song
     sent = []
     stored = {
-        module._temp_file("agent_m4l_Wobble.json"): json.dumps({
-            "id": "patch1",
-            "command": "update",
-            "patch": {"objects": [{"id": "cutoff", "text": "flonum"}], "connections": []},
-        })
+        module._temp_file("agent_m4l_Wobble.json"): json.dumps(
+            {
+                "id": "patch1",
+                "command": "update",
+                "patch": {"objects": [{"id": "cutoff", "text": "flonum"}], "connections": []},
+            }
+        )
     }
 
     class FakeSocket:
@@ -912,14 +986,16 @@ def test_agent_m4l_value_update_writes_file_with_recovery_patch(monkeypatch):
     monkeypatch.setattr(socket, "socket", FakeSocket)
     monkeypatch.setattr(module, "open", lambda path, mode: FakeFile(path, mode), raising=False)
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "audio_effect",
-        "instance_id": "Wobble",
-        "command": "set",
-        "values": [{"id": "cutoff", "value": 0.72}],
-        "load": False,
-        "id": "set1",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "audio_effect",
+            "instance_id": "Wobble",
+            "command": "set",
+            "values": [{"id": "cutoff", "value": 0.72}],
+            "load": False,
+            "id": "set1",
+        }
+    )
     payload = json.loads(stored[module._temp_file("agent_m4l_Wobble.json")])
     recovery = json.loads(stored["%s.recovery.json" % module._temp_file("agent_m4l_Wobble.json")])
 
@@ -938,12 +1014,14 @@ def test_agent_m4l_recovery_patch_preserves_top_level_bounds(monkeypatch):
     module, _app = load_bridge_module(monkeypatch)
     bridge = object.__new__(module.AbletonLiveMCP)
     stored = {
-        module._temp_file("agent_m4l_Panels.json"): json.dumps({
-            "objects": [{"id": "dial", "text": "flonum"}],
-            "connections": [],
-            "device_width": 720,
-            "device_height": 260,
-        })
+        module._temp_file("agent_m4l_Panels.json"): json.dumps(
+            {
+                "objects": [{"id": "dial", "text": "flonum"}],
+                "connections": [],
+                "device_width": 720,
+                "device_height": 260,
+            }
+        )
     }
 
     class FakeFile:
@@ -974,9 +1052,11 @@ def test_agent_m4l_recovery_patch_falls_back_to_sidecar(monkeypatch):
     command_path = module._temp_file("agent_m4l_Panels.json")
     stored = {
         command_path: json.dumps({"id": "status1", "command": "status", "patch": None}),
-        "%s.recovery.json" % command_path: json.dumps({
-            "patch": {"objects": [{"id": "dial", "text": "flonum"}], "connections": []},
-        }),
+        "%s.recovery.json" % command_path: json.dumps(
+            {
+                "patch": {"objects": [{"id": "dial", "text": "flonum"}], "connections": []},
+            }
+        ),
     }
 
     class FakeFile:
@@ -1029,16 +1109,18 @@ def test_agent_m4l_device_top_level_webuis_trigger_update(monkeypatch):
 
     monkeypatch.setattr(module, "open", lambda path, mode: FakeFile(path, mode), raising=False)
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "audio_effect",
-        "instance_id": "Panels",
-        "webuis": [
-            {"id": "a", "object": "jbrowser~", "html_path": "/state/a.html"},
-            {"id": "b", "object": "jweb", "html_path": "/state/b.html"},
-        ],
-        "udp": False,
-        "load": False,
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "audio_effect",
+            "instance_id": "Panels",
+            "webuis": [
+                {"id": "a", "object": "jbrowser~", "html_path": "/state/a.html"},
+                {"id": "b", "object": "jweb", "html_path": "/state/b.html"},
+            ],
+            "udp": False,
+            "load": False,
+        }
+    )
     command_path = module._temp_file("agent_m4l_Panels.json")
     payload = json.loads(written[command_path])
 
@@ -1074,16 +1156,18 @@ def test_agent_m4l_device_returns_command_id_without_blocking_for_status(monkeyp
 
     monkeypatch.setattr(socket, "socket", FakeSocket)
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "audio_effect",
-        "instance_id": "Wobble",
-        "command_file": str(command_file),
-        "status_file": str(status_file),
-        "command": "set",
-        "values": [{"id": "cutoff", "value": 0.72}],
-        "load": False,
-        "id": "set1",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "audio_effect",
+            "instance_id": "Wobble",
+            "command_file": str(command_file),
+            "status_file": str(status_file),
+            "command": "set",
+            "values": [{"id": "cutoff", "value": 0.72}],
+            "load": False,
+            "id": "set1",
+        }
+    )
 
     assert status_file.stat().st_mtime >= before
     assert result["command_id"] == "set1"
@@ -1117,23 +1201,27 @@ def test_agent_m4l_generated_command_id_includes_values(monkeypatch):
 
     monkeypatch.setattr(module, "open", lambda path, mode: FakeFile(path, mode), raising=False)
 
-    first = bridge._rpc_agent_m4l_device({
-        "role": "audio_effect",
-        "instance_id": "Wobble",
-        "command": "set",
-        "values": [{"id": "cutoff", "value": 0.25}],
-        "udp": False,
-        "load": False,
-    })
+    first = bridge._rpc_agent_m4l_device(
+        {
+            "role": "audio_effect",
+            "instance_id": "Wobble",
+            "command": "set",
+            "values": [{"id": "cutoff", "value": 0.25}],
+            "udp": False,
+            "load": False,
+        }
+    )
     first_payload = json.loads(written[-1])
-    second = bridge._rpc_agent_m4l_device({
-        "role": "audio_effect",
-        "instance_id": "Wobble",
-        "command": "set",
-        "values": [{"id": "cutoff", "value": 0.75}],
-        "udp": False,
-        "load": False,
-    })
+    second = bridge._rpc_agent_m4l_device(
+        {
+            "role": "audio_effect",
+            "instance_id": "Wobble",
+            "command": "set",
+            "values": [{"id": "cutoff", "value": 0.75}],
+            "udp": False,
+            "load": False,
+        }
+    )
     second_payload = json.loads(written[-1])
 
     assert first["command"] == second["command"] == "set"
@@ -1144,15 +1232,17 @@ def test_agent_m4l_device_falls_back_to_track_insert_device_when_browser_is_stal
     bridge, song, app = make_bridge(monkeypatch)
     app.browser.user_library = FakeBrowserItem("User Library", folder=True, children=[])
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "audio_effect",
-        "instance_id": "Fresh",
-        "device_name": "AgentM4L_audio_effect_Fresh",
-        "target_track": {"path": "live_set tracks 1"},
-        "patch": {"objects": []},
-        "udp": False,
-        "id": "fresh1",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "audio_effect",
+            "instance_id": "Fresh",
+            "device_name": "AgentM4L_audio_effect_Fresh",
+            "target_track": {"path": "live_set tracks 1"},
+            "patch": {"objects": []},
+            "udp": False,
+            "id": "fresh1",
+        }
+    )
 
     assert result["loaded"] is True
     assert app.browser.loaded == []
@@ -1165,15 +1255,17 @@ def test_agent_m4l_device_prefers_track_insert_device_before_browser_load(monkey
     item = FakeBrowserItem(device_name, loadable=True, device=True)
     bridge._find_browser_item_named = lambda name: item if name == device_name else None
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "instrument",
-        "instance_id": "prism_loom_keys_001",
-        "name": "Prism Loom Keys",
-        "target_track": {"path": "live_set tracks 1"},
-        "patch": {"objects": []},
-        "udp": False,
-        "id": "prism1",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "instrument",
+            "instance_id": "prism_loom_keys_001",
+            "name": "Prism Loom Keys",
+            "target_track": {"path": "live_set tracks 1"},
+            "patch": {"objects": []},
+            "udp": False,
+            "id": "prism1",
+        }
+    )
 
     assert result["loaded"] is True
     assert app.browser.loaded == []
@@ -1194,15 +1286,17 @@ def test_agent_m4l_device_renames_new_device_inserted_before_existing_chain(monk
     device_name = "AgentM4L_midi_effect_Pulse_Router_MIDI"
     app.browser.load_item = lambda _item: (_ for _ in ()).throw(AssertionError("browser.load_item should not be needed"))
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "midi_effect",
-        "instance_id": "Pulse Router MIDI",
-        "device_name": device_name,
-        "target_track": {"path": "live_set tracks 1"},
-        "patch": {"objects": []},
-        "udp": False,
-        "id": "midi1",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "midi_effect",
+            "instance_id": "Pulse Router MIDI",
+            "device_name": device_name,
+            "target_track": {"path": "live_set tracks 1"},
+            "patch": {"objects": []},
+            "udp": False,
+            "id": "midi1",
+        }
+    )
 
     assert result["loaded"] is True
     assert app.browser.loaded == []
@@ -1222,15 +1316,17 @@ def test_agent_m4l_device_name_match_requires_matching_role_when_available(monke
     wrong_role.class_name = "MxDeviceAudioEffect"
     target.devices = FakeVector([wrong_role])
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "midi_effect",
-        "instance_id": "Pulse Router MIDI",
-        "device_name": device_name,
-        "target_track": {"path": "live_set tracks 1"},
-        "patch": {"objects": []},
-        "udp": False,
-        "id": "midi2",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "midi_effect",
+            "instance_id": "Pulse Router MIDI",
+            "device_name": device_name,
+            "target_track": {"path": "live_set tracks 1"},
+            "patch": {"objects": []},
+            "udp": False,
+            "id": "midi2",
+        }
+    )
 
     assert result["loaded"] is True
     assert app.browser.loaded == []
@@ -1245,15 +1341,17 @@ def test_agent_m4l_device_name_uses_title_when_instance_is_stable(monkeypatch):
     item = FakeBrowserItem(device_name, loadable=True, device=True)
     bridge._find_browser_item_named = lambda name: item if name == device_name else None
 
-    result = bridge._rpc_agent_m4l_device({
-        "role": "instrument",
-        "instance_id": "orbit_glass_synth_001",
-        "name": "Orbit Glass Synth",
-        "target_track": {"path": "live_set tracks 1"},
-        "patch": {"objects": []},
-        "udp": False,
-        "id": "orbit1",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "instrument",
+            "instance_id": "orbit_glass_synth_001",
+            "name": "Orbit Glass Synth",
+            "target_track": {"path": "live_set tracks 1"},
+            "patch": {"objects": []},
+            "udp": False,
+            "id": "orbit1",
+        }
+    )
 
     assert result["device_name"] == device_name
     assert result["loaded"] is True
@@ -1269,15 +1367,17 @@ def test_agent_m4l_device_reports_load_error_without_dropping_command(monkeypatc
         raise RuntimeError("Device AgentM4L_audio_effect_Fresh not found.")
 
     song.tracks[1].insert_device = fail_insert
-    result = bridge._rpc_agent_m4l_device({
-        "role": "audio_effect",
-        "instance_id": "Fresh",
-        "device_name": "AgentM4L_audio_effect_Fresh",
-        "target_track": {"path": "live_set tracks 1"},
-        "patch": {"objects": []},
-        "udp": False,
-        "id": "fresh1",
-    })
+    result = bridge._rpc_agent_m4l_device(
+        {
+            "role": "audio_effect",
+            "instance_id": "Fresh",
+            "device_name": "AgentM4L_audio_effect_Fresh",
+            "target_track": {"path": "live_set tracks 1"},
+            "patch": {"objects": []},
+            "udp": False,
+            "id": "fresh1",
+        }
+    )
 
     assert result["sent"] is False
     assert result["loaded"] is False
@@ -1310,12 +1410,14 @@ def test_agent_m4l_cleanup_deletes_with_explicit_flag(monkeypatch):
     song.tracks[0].insert_device("AgentM4L_audio_effect_Second")
     song.tracks[1].insert_device("AgentM4L_audio_effect_Third")
 
-    result = bridge._rpc_agent_m4l_cleanup({
-        "delete": True,
-        "role": "audio_effect",
-        "track_query": "track 1",
-        "max_delete": 1,
-    })
+    result = bridge._rpc_agent_m4l_cleanup(
+        {
+            "delete": True,
+            "role": "audio_effect",
+            "track_query": "track 1",
+            "max_delete": 1,
+        }
+    )
 
     assert result["matched_count"] == 2
     assert result["deleted_count"] == 1
@@ -1423,10 +1525,12 @@ def test_clip_notes_can_be_listed_and_updated(monkeypatch):
     assert notes["note_count"] == 1
     assert notes["notes"][0]["velocity"] == 40.0
 
-    updated = bridge._rpc_clip_update_notes({
-        "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
-        "updates": [{"note_id": 1, "velocity": 88.0}],
-    })
+    updated = bridge._rpc_clip_update_notes(
+        {
+            "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
+            "updates": [{"note_id": 1, "velocity": 88.0}],
+        }
+    )
     assert updated["note_api"] == "extended"
     assert updated["updated"] == 1
     assert updated["notes"][0]["velocity"] == 88.0
@@ -1451,10 +1555,12 @@ def test_clip_update_notes_refuses_legacy_note_api(monkeypatch):
     monkeypatch.delattr(FakeClip, "apply_note_modifications")
 
     try:
-        bridge._rpc_clip_update_notes({
-            "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
-            "updates": [{"note_id": 1, "velocity": 88.0}],
-        })
+        bridge._rpc_clip_update_notes(
+            {
+                "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
+                "updates": [{"note_id": 1, "velocity": 88.0}],
+            }
+        )
     except RuntimeError as exc:
         assert "refusing legacy note API" in str(exc)
     else:
@@ -1486,23 +1592,27 @@ def test_eval_refuses_obsolete_note_api_code(monkeypatch):
 
 def test_exec_can_explicitly_allow_obsolete_note_api_code(monkeypatch):
     bridge, _song, _app = make_bridge(monkeypatch)
-    result = bridge._rpc_exec({
-        "code": "result = 'remove_notes(compatibility probe only)'",
-        "allow_legacy_note_api": True,
-    })
+    result = bridge._rpc_exec(
+        {
+            "code": "result = 'remove_notes(compatibility probe only)'",
+            "allow_legacy_note_api": True,
+        }
+    )
     assert result == "remove_notes(compatibility probe only)"
 
 
 def test_clip_add_notes_accepts_json_note_specs(monkeypatch):
     bridge, _song, _app = make_bridge(monkeypatch)
-    result = bridge._rpc_clip_add_notes({
-        "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
-        "clear": True,
-        "notes": [
-            {"pitch": 64, "start_time": 0.0, "duration": 0.5, "velocity": 72},
-            {"pitch": 67, "start_time": 0.5, "duration": 0.5, "velocity": 80, "mute": True},
-        ],
-    })
+    result = bridge._rpc_clip_add_notes(
+        {
+            "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
+            "clear": True,
+            "notes": [
+                {"pitch": 64, "start_time": 0.0, "duration": 0.5, "velocity": 72},
+                {"pitch": 67, "start_time": 0.5, "duration": 0.5, "velocity": 80, "mute": True},
+            ],
+        }
+    )
 
     assert result["added"] == 2
     assert result["note_api"] == "extended"
@@ -1517,18 +1627,20 @@ def test_clip_add_notes_can_create_slot_clip_and_launch(monkeypatch):
     slot = song.tracks[1].clip_slots[0]
     assert slot.has_clip is False
 
-    result = bridge._rpc_clip_add_notes({
-        "ref": {"path": "live_set tracks 1 clip_slots 0"},
-        "create_clip_length": 4.0,
-        "clip_name": "Generated Pattern",
-        "loop_start": 0.0,
-        "loop_end": 4.0,
-        "fire": True,
-        "notes": [
-            {"pitch": 60, "start_time": 0.0, "duration": 0.5, "velocity": 90},
-            {"pitch": 67, "start_time": 0.5, "duration": 0.5, "velocity": 76},
-        ],
-    })
+    result = bridge._rpc_clip_add_notes(
+        {
+            "ref": {"path": "live_set tracks 1 clip_slots 0"},
+            "create_clip_length": 4.0,
+            "clip_name": "Generated Pattern",
+            "loop_start": 0.0,
+            "loop_end": 4.0,
+            "fire": True,
+            "notes": [
+                {"pitch": 60, "start_time": 0.0, "duration": 0.5, "velocity": 90},
+                {"pitch": 67, "start_time": 0.5, "duration": 0.5, "velocity": 76},
+            ],
+        }
+    )
 
     assert result["created_clip"] is True
     assert result["launched"] is True
@@ -1561,11 +1673,13 @@ def test_clip_add_notes_detects_empty_slot_without_touching_clip(monkeypatch):
     slot = EmptySlot()
     monkeypatch.setattr(bridge, "_resolve", lambda _ref: slot)
 
-    result = bridge._rpc_clip_add_notes({
-        "ref": {"path": "live_set tracks 0 clip_slots 0"},
-        "create_clip_length": 4.0,
-        "notes": [{"pitch": 72, "start_time": 0.0, "duration": 0.5, "velocity": 90}],
-    })
+    result = bridge._rpc_clip_add_notes(
+        {
+            "ref": {"path": "live_set tracks 0 clip_slots 0"},
+            "create_clip_length": 4.0,
+            "notes": [{"pitch": 72, "start_time": 0.0, "duration": 0.5, "velocity": 90}],
+        }
+    )
 
     assert result["created_clip"] is True
     assert result["note_api"] == "extended"
@@ -1578,13 +1692,15 @@ def test_clip_add_notes_can_replace_slot_clip(monkeypatch):
     old_clip = slot.clip
     assert old_clip.get_all_notes_extended()
 
-    result = bridge._rpc_clip_add_notes({
-        "ref": {"path": "live_set tracks 0 clip_slots 0"},
-        "replace_existing_clip": True,
-        "create_clip_length": 8.0,
-        "clip_name": "Fresh Pattern",
-        "notes": [{"pitch": 72, "start_time": 0.0, "duration": 0.5, "velocity": 90}],
-    })
+    result = bridge._rpc_clip_add_notes(
+        {
+            "ref": {"path": "live_set tracks 0 clip_slots 0"},
+            "replace_existing_clip": True,
+            "create_clip_length": 8.0,
+            "clip_name": "Fresh Pattern",
+            "notes": [{"pitch": 72, "start_time": 0.0, "duration": 0.5, "velocity": 90}],
+        }
+    )
 
     assert result["created_clip"] is True
     assert result["replaced_clip"] is True
@@ -1603,12 +1719,14 @@ def test_clip_add_notes_replace_requires_slot_ref(monkeypatch):
     bridge, _song, _app = make_bridge(monkeypatch)
 
     try:
-        bridge._rpc_clip_add_notes({
-            "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
-            "replace_existing_clip": True,
-            "create_clip_length": 4.0,
-            "notes": [{"pitch": 72, "start_time": 0.0, "duration": 0.5, "velocity": 90}],
-        })
+        bridge._rpc_clip_add_notes(
+            {
+                "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
+                "replace_existing_clip": True,
+                "create_clip_length": 4.0,
+                "notes": [{"pitch": 72, "start_time": 0.0, "duration": 0.5, "velocity": 90}],
+            }
+        )
     except ValueError as exc:
         assert "clip slot ref" in str(exc)
     else:
@@ -1619,10 +1737,12 @@ def test_clip_add_notes_requires_length_for_empty_slot(monkeypatch):
     bridge, _song, _app = make_bridge(monkeypatch)
 
     try:
-        bridge._rpc_clip_add_notes({
-            "ref": {"path": "live_set tracks 1 clip_slots 0"},
-            "notes": [{"pitch": 60, "start_time": 0.0, "duration": 0.5, "velocity": 90}],
-        })
+        bridge._rpc_clip_add_notes(
+            {
+                "ref": {"path": "live_set tracks 1 clip_slots 0"},
+                "notes": [{"pitch": 60, "start_time": 0.0, "duration": 0.5, "velocity": 90}],
+            }
+        )
     except ValueError as exc:
         assert "create_clip_length" in str(exc)
     else:
@@ -1639,11 +1759,13 @@ def test_clip_add_notes_refuses_legacy_clear_by_default(monkeypatch):
     clip.remove_notes_extended = missing_extended
 
     try:
-        bridge._rpc_clip_add_notes({
-            "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
-            "clear": True,
-            "notes": [{"pitch": 64, "start_time": 0.0, "duration": 0.5, "velocity": 72}],
-        })
+        bridge._rpc_clip_add_notes(
+            {
+                "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
+                "clear": True,
+                "notes": [{"pitch": 64, "start_time": 0.0, "duration": 0.5, "velocity": 72}],
+            }
+        )
     except RuntimeError as exc:
         assert "allow_legacy_note_api" in str(exc)
     else:
@@ -1660,12 +1782,14 @@ def test_clip_add_notes_allows_legacy_clear_when_explicit(monkeypatch):
 
     clip.remove_notes_extended = missing_extended
 
-    result = bridge._rpc_clip_add_notes({
-        "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
-        "clear": True,
-        "allow_legacy_note_api": True,
-        "notes": [{"pitch": 64, "start_time": 0.0, "duration": 0.5, "velocity": 72}],
-    })
+    result = bridge._rpc_clip_add_notes(
+        {
+            "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
+            "clear": True,
+            "allow_legacy_note_api": True,
+            "notes": [{"pitch": 64, "start_time": 0.0, "duration": 0.5, "velocity": 72}],
+        }
+    )
 
     assert result["legacy_note_api"] is True
     assert result["note_api"] == "legacy"
@@ -1676,11 +1800,13 @@ def test_clip_duplicate_to_arrangement_uses_clip_object(monkeypatch):
     bridge, song, _app = make_bridge(monkeypatch)
     before = len(song.tracks[0].arrangement_clips)
 
-    result = bridge._rpc_clip_duplicate_to_arrangement({
-        "track": {"path": "live_set tracks 0"},
-        "clip": {"path": "live_set tracks 0 clip_slots 0 clip"},
-        "destination_time": 16.0,
-    })
+    result = bridge._rpc_clip_duplicate_to_arrangement(
+        {
+            "track": {"path": "live_set tracks 0"},
+            "clip": {"path": "live_set tracks 0 clip_slots 0 clip"},
+            "destination_time": 16.0,
+        }
+    )
 
     assert result["destination_time"] == 16.0
     assert len(song.tracks[0].arrangement_clips) == before + 1
@@ -1692,12 +1818,14 @@ def test_track_create_audio_clip_imports_local_file_path(monkeypatch, tmp_path):
     audio = tmp_path / "voice.wav"
     audio.write_bytes(b"fake")
 
-    result = bridge._rpc_track_create_audio_clip({
-        "ref": {"path": "live_set tracks 1"},
-        "file_path": str(audio),
-        "destination_time": 32.0,
-        "name": "Audio Vocal Hook",
-    })
+    result = bridge._rpc_track_create_audio_clip(
+        {
+            "ref": {"path": "live_set tracks 1"},
+            "file_path": str(audio),
+            "destination_time": 32.0,
+            "name": "Audio Vocal Hook",
+        }
+    )
 
     clip = song.tracks[1].arrangement_clips[-1]
     assert result["clip"]["name"] == "Audio Vocal Hook"
@@ -1707,11 +1835,13 @@ def test_track_create_audio_clip_imports_local_file_path(monkeypatch, tmp_path):
 
 def test_track_insert_device_uses_device_name_signature(monkeypatch):
     bridge, song, _app = make_bridge(monkeypatch)
-    result = bridge._rpc_track_insert_device({
-        "ref": {"path": "live_set tracks 1"},
-        "device_name": "EQ Eight",
-        "device_index": -1,
-    })
+    result = bridge._rpc_track_insert_device(
+        {
+            "ref": {"path": "live_set tracks 1"},
+            "device_name": "EQ Eight",
+            "device_index": -1,
+        }
+    )
 
     assert result["inserted"] is True
     assert song.tracks[1].devices[-1].name == "EQ Eight"
@@ -1727,13 +1857,15 @@ def test_clip_envelope_can_be_inspected_inserted_and_cleared(monkeypatch):
     assert missing["has_envelope"] is False
     assert missing["events"] == []
 
-    updated = bridge._rpc_clip_envelope({
-        "ref": clip_ref,
-        "parameter": parameter_ref,
-        "create": True,
-        "delete_range": {"start_time": 0.0, "end_time": 4.0},
-        "insert_steps": [{"time": 0.0, "duration": 1.0, "value": 0.5}],
-    })
+    updated = bridge._rpc_clip_envelope(
+        {
+            "ref": clip_ref,
+            "parameter": parameter_ref,
+            "create": True,
+            "delete_range": {"start_time": 0.0, "end_time": 4.0},
+            "insert_steps": [{"time": 0.0, "duration": 1.0, "value": 0.5}],
+        }
+    )
     assert updated["has_envelope"] is True
     assert updated["event_count"] == 2
     assert updated["events"][0] == {"time": 0.0, "value": 0.5}
@@ -1753,14 +1885,16 @@ def test_clip_velocity_envelope_maps_note_velocities(monkeypatch):
     ]
     parameter = song.tracks[0].devices[0].parameters[1]
     parameter_ref = {"id": bridge._parameter_summary(parameter)["id"]}
-    result = bridge._rpc_clip_velocity_envelope({
-        "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
-        "parameter": parameter_ref,
-        "min_value": 0.0,
-        "max_value": 1.0,
-        "start_time": 0.0,
-        "end_time": 4.0,
-    })
+    result = bridge._rpc_clip_velocity_envelope(
+        {
+            "ref": {"path": "live_set tracks 0 clip_slots 0 clip"},
+            "parameter": parameter_ref,
+            "min_value": 0.0,
+            "max_value": 1.0,
+            "start_time": 0.0,
+            "end_time": 4.0,
+        }
+    )
     assert result["notes_mapped"] == 3
     assert result["event_count"] == 6
     assert [round(event["value"], 3) for event in result["events"][::2]] == [0.315, 0.63, 0.945]
@@ -1774,13 +1908,15 @@ def test_clip_warp_markers_can_be_inspected_and_edited(monkeypatch):
     assert initial["warping"] is True
     assert initial["marker_count"] == 2
 
-    updated = bridge._rpc_clip_warp_markers({
-        "ref": clip_ref,
-        "warping": True,
-        "warp_mode": 1,
-        "move_markers": [{"beat_time": 4.0, "beat_time_delta": 0.25}],
-        "add_markers": [{"sample_time": 1.0, "beat_time": 1.0}],
-    })
+    updated = bridge._rpc_clip_warp_markers(
+        {
+            "ref": clip_ref,
+            "warping": True,
+            "warp_mode": 1,
+            "move_markers": [{"beat_time": 4.0, "beat_time_delta": 0.25}],
+            "add_markers": [{"sample_time": 1.0, "beat_time": 1.0}],
+        }
+    )
     assert updated["warp_mode"] == 1
     assert {"beat_time": 4.25, "sample_time": 2.0} in updated["markers"]
     assert {"beat_time": 1.0, "sample_time": 1.0} in updated["markers"]
@@ -1854,12 +1990,14 @@ def test_app_browser_path_roots_and_stale_id_errors(monkeypatch):
 def test_batch_and_id_resolution(monkeypatch):
     bridge, song, _app = make_bridge(monkeypatch)
     summary = bridge._object_summary(song)
-    result = bridge._rpc_batch({
-        "operations": [
-            {"method": "get", "params": {"ref": {"id": summary["id"]}, "properties": ["tempo"]}},
-            {"method": "children", "params": {"ref": {"path": "live_set"}, "child": "tracks", "limit": 1}},
-        ],
-    })
+    result = bridge._rpc_batch(
+        {
+            "operations": [
+                {"method": "get", "params": {"ref": {"id": summary["id"]}, "properties": ["tempo"]}},
+                {"method": "children", "params": {"ref": {"path": "live_set"}, "child": "tracks", "limit": 1}},
+            ],
+        }
+    )
     assert [item["ok"] for item in result] == [True, True]
     assert result[0]["result"]["properties"]["tempo"] == 120.0
 
@@ -1881,29 +2019,37 @@ def test_ping_reports_running_remote_script_hash(monkeypatch):
 
 def test_batch_inherits_response_controls(monkeypatch):
     bridge, _song, _app = make_bridge(monkeypatch)
-    result = bridge._rpc_batch({
-        "max_items": 2,
-        "max_string_length": 3,
-        "operations": [
-            {"method": "eval", "params": {"expr": "list(range(5))"}},
-            {"method": "eval", "params": {"expr": "'abcdef'"}},
-        ],
-    })
+    result = bridge._rpc_batch(
+        {
+            "max_items": 2,
+            "max_string_length": 3,
+            "operations": [
+                {"method": "eval", "params": {"expr": "list(range(5))"}},
+                {"method": "eval", "params": {"expr": "'abcdef'"}},
+            ],
+        }
+    )
     assert result[0]["result"] == [0, 1, {"truncated": True, "omitted": 3}]
     assert result[1]["result"] == "abc...<truncated 3 chars>"
 
 
 def test_batch_get_properties_are_not_double_encoded(monkeypatch):
     bridge, _song, _app = make_bridge(monkeypatch)
-    result = bridge._run_on_main("batch", {
-        "max_depth": 3,
-        "operations": [
-            {"method": "get", "params": {
-                "ref": {"path": "live_set"},
-                "properties": ["tempo", "signature_numerator", "signature_denominator"],
-            }},
-        ],
-    })
+    result = bridge._run_on_main(
+        "batch",
+        {
+            "max_depth": 3,
+            "operations": [
+                {
+                    "method": "get",
+                    "params": {
+                        "ref": {"path": "live_set"},
+                        "properties": ["tempo", "signature_numerator", "signature_denominator"],
+                    },
+                },
+            ],
+        },
+    )
 
     assert result[0]["ok"] is True
     assert result[0]["result"]["properties"] == {
@@ -2187,12 +2333,14 @@ def test_browser_roots_search_and_load(monkeypatch):
     roots = bridge._rpc_browser_roots({})
     assert "plugins" in {root["name"] for root in roots}
 
-    plugins = bridge._rpc_browser_search({
-        "query": "plugin synth",
-        "roots": ["plugins"],
-        "limit": 2,
-        "max_depth": 5,
-    })
+    plugins = bridge._rpc_browser_search(
+        {
+            "query": "plugin synth",
+            "roots": ["plugins"],
+            "limit": 2,
+            "max_depth": 5,
+        }
+    )
     assert plugins["results"][0]["name"] == "Plugin Synth"
     assert plugins["results"][0]["is_loadable"] is True
 
@@ -2226,10 +2374,12 @@ def test_browser_load_can_reresolve_stale_id_by_uri_or_path(monkeypatch):
 def test_load_device_finds_and_loads_by_name(monkeypatch):
     bridge, song, app = make_bridge(monkeypatch)
     song.view.selected_track = None
-    result = bridge._rpc_load_device({
-        "name": "AgentAudioTap",
-        "target_track": {"path": "live_set tracks 0"},
-    })
+    result = bridge._rpc_load_device(
+        {
+            "name": "AgentAudioTap",
+            "target_track": {"path": "live_set tracks 0"},
+        }
+    )
     assert result["loaded"] is True
     assert result["item"]["name"] == "AgentAudioTap"
     assert app.browser.loaded == ["AgentAudioTap"]
@@ -2248,12 +2398,14 @@ def test_load_device_reports_candidates_when_ambiguous(monkeypatch):
 
 def test_load_device_path_contains_disambiguates(monkeypatch):
     bridge, song, app = make_bridge(monkeypatch)
-    result = bridge._rpc_load_device({
-        "name": "AgentM4L",
-        "name_exact": False,
-        "path_contains": "Instruments",
-        "target_track": {"path": "live_set tracks 0"},
-    })
+    result = bridge._rpc_load_device(
+        {
+            "name": "AgentM4L",
+            "name_exact": False,
+            "path_contains": "Instruments",
+            "target_track": {"path": "live_set tracks 0"},
+        }
+    )
     assert result["loaded"] is True
     assert app.browser.loaded == ["AgentM4L_instrument_Lead"]
 
@@ -2279,15 +2431,17 @@ def test_browser_capabilities_report_roots_and_semantic_attrs(monkeypatch):
 
 def test_browser_search_can_stop_on_limit(monkeypatch):
     bridge, _song, _app = make_bridge(monkeypatch)
-    result = bridge._rpc_browser_search({
-        "query": "",
-        "roots": ["drums"],
-        "limit": 1,
-        "include_folders": True,
-        "loadable_only": False,
-        "stop_on_limit": True,
-        "stop_score": 1,
-    })
+    result = bridge._rpc_browser_search(
+        {
+            "query": "",
+            "roots": ["drums"],
+            "limit": 1,
+            "include_folders": True,
+            "loadable_only": False,
+            "stop_on_limit": True,
+            "stop_score": 1,
+        }
+    )
     assert len(result["results"]) == 1
     assert result["visited"] == 1
     assert result["truncated"] is True
@@ -2295,18 +2449,28 @@ def test_browser_search_can_stop_on_limit(monkeypatch):
 
 def test_browser_stop_on_limit_waits_for_good_score(monkeypatch):
     bridge, _song, app = make_bridge(monkeypatch)
-    app.browser.instruments = FakeBrowserItem("instruments", folder=True, children=[
-        FakeBrowserItem("Folder", folder=True, children=[
-            FakeBrowserItem("Secret Kick.adg", loadable=True),
-            FakeBrowserItem("Operator Kick.adv", loadable=True),
-        ]),
-    ])
-    result = bridge._rpc_browser_search({
-        "query": "operator kick",
-        "roots": ["instruments"],
-        "limit": 1,
-        "stop_on_limit": True,
-    })
+    app.browser.instruments = FakeBrowserItem(
+        "instruments",
+        folder=True,
+        children=[
+            FakeBrowserItem(
+                "Folder",
+                folder=True,
+                children=[
+                    FakeBrowserItem("Secret Kick.adg", loadable=True),
+                    FakeBrowserItem("Operator Kick.adv", loadable=True),
+                ],
+            ),
+        ],
+    )
+    result = bridge._rpc_browser_search(
+        {
+            "query": "operator kick",
+            "roots": ["instruments"],
+            "limit": 1,
+            "stop_on_limit": True,
+        }
+    )
     assert result["results"][0]["name"] == "Operator Kick.adv"
 
 

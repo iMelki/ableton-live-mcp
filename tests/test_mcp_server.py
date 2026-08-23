@@ -81,12 +81,7 @@ def test_all_tools_expose_object_input_schemas():
     # registered with an empty/loose schema.
     server = make_server(FakeBridge())
     response = server.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
-    bad = [
-        tool["name"]
-        for tool in response["result"]["tools"]
-        if not isinstance(tool.get("inputSchema"), dict)
-        or tool["inputSchema"].get("type") != "object"
-    ]
+    bad = [tool["name"] for tool in response["result"]["tools"] if not isinstance(tool.get("inputSchema"), dict) or tool["inputSchema"].get("type") != "object"]
     assert not bad, f"tools advertise non-object inputSchema: {bad}"
 
 
@@ -171,18 +166,28 @@ def test_validate_reports_local_mcp_tool_schemas():
 
 
 def test_validate_fails_on_local_mcp_tool_schema_gap(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr(validate, "mcp_tool_schema_status", lambda: {
-        "ok": False,
-        "next_action": "Restart the MCP server/client so it advertises the current local tool schemas.",
-    })
+    monkeypatch.setattr(
+        validate,
+        "mcp_tool_schema_status",
+        lambda: {
+            "ok": False,
+            "next_action": "Restart the MCP server/client so it advertises the current local tool schemas.",
+        },
+    )
 
-    assert validate_main([
-        "--skip-live",
-        "--target-dir", str(tmp_path),
-        "--allow-stale-remote-script",
-        "--allow-stale-m4l-host",
-        "--allow-missing-visual-capture",
-    ]) == 1
+    assert (
+        validate_main(
+            [
+                "--skip-live",
+                "--target-dir",
+                str(tmp_path),
+                "--allow-stale-remote-script",
+                "--allow-stale-m4l-host",
+                "--allow-missing-visual-capture",
+            ]
+        )
+        == 1
+    )
     output = capsys.readouterr()
     assert '"mcp_tools"' in output.out
     assert "local MCP tool schemas are stale or incomplete" in output.err
@@ -191,15 +196,17 @@ def test_validate_fails_on_local_mcp_tool_schema_gap(tmp_path, monkeypatch, caps
 def test_tool_call_forwards_arguments_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 2,
-        "method": "tools/call",
-        "params": {
-            "name": "live_call",
-            "arguments": {"ref": {"path": "live_set"}, "method": "create_midi_track", "args": [0]},
-        },
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "live_call",
+                "arguments": {"ref": {"path": "live_set"}, "method": "create_midi_track", "args": [0]},
+            },
+        }
+    )
     assert bridge.calls == [("call", {"ref": {"path": "live_set"}, "method": "create_midi_track", "args": [0]})]
     content = response["result"]["content"][0]["text"]
     assert json.loads(content)["method"] == "call"
@@ -221,15 +228,17 @@ def test_tool_call_normalizes_none_result_into_record():
 
     bridge = NoneBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 60,
-        "method": "tools/call",
-        "params": {
-            "name": "live_call",
-            "arguments": {"ref": {"path": "live_set tracks 0"}, "method": "delete_device", "args": [0]},
-        },
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 60,
+            "method": "tools/call",
+            "params": {
+                "name": "live_call",
+                "arguments": {"ref": {"path": "live_set tracks 0"}, "method": "delete_device", "args": [0]},
+            },
+        }
+    )
 
     assert bridge.calls == [("call", {"ref": {"path": "live_set tracks 0"}, "method": "delete_device", "args": [0]})]
     assert "error" not in response
@@ -238,14 +247,17 @@ def test_tool_call_normalizes_none_result_into_record():
     assert json.loads(response["result"]["content"][0]["text"]) == {"ok": True, "result": None}
 
 
-@pytest.mark.parametrize("tool_name,method,arguments,returned", [
-    ("live_exec", "exec", {"code": "result = song.name"}, "My Set"),
-    ("live_exec", "exec", {"code": "result = len(song.tracks)"}, 7),
-    ("live_exec", "exec", {"code": "result = song.is_playing"}, True),
-    ("live_exec", "exec", {"code": "result = [t.name for t in song.tracks]"}, ["Drums", "Bass"]),
-    ("live_eval", "eval", {"expr": "song.name"}, "My Set"),
-    ("live_eval", "eval", {"expr": "len(song.tracks)"}, 4),
-])
+@pytest.mark.parametrize(
+    "tool_name,method,arguments,returned",
+    [
+        ("live_exec", "exec", {"code": "result = song.name"}, "My Set"),
+        ("live_exec", "exec", {"code": "result = len(song.tracks)"}, 7),
+        ("live_exec", "exec", {"code": "result = song.is_playing"}, True),
+        ("live_exec", "exec", {"code": "result = [t.name for t in song.tracks]"}, ["Drums", "Bass"]),
+        ("live_eval", "eval", {"expr": "song.name"}, "My Set"),
+        ("live_eval", "eval", {"expr": "len(song.tracks)"}, 4),
+    ],
+)
 def test_tool_call_normalizes_scalar_and_list_results_into_record(tool_name, method, arguments, returned):
     # live_exec/live_eval (and collection tools) can return scalars or lists.
     # MCP requires structuredContent to be a JSON object, so a bare string/int/
@@ -261,12 +273,14 @@ def test_tool_call_normalizes_scalar_and_list_results_into_record(tool_name, met
 
     bridge = ScalarBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 61,
-        "method": "tools/call",
-        "params": {"name": tool_name, "arguments": arguments},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 61,
+            "method": "tools/call",
+            "params": {"name": tool_name, "arguments": arguments},
+        }
+    )
 
     assert bridge.calls == [(method, arguments)]
     assert "error" not in response
@@ -281,12 +295,14 @@ def test_tool_call_does_not_double_wrap_dict_results():
     # under a second "result" key.
     bridge = FakeBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 62,
-        "method": "tools/call",
-        "params": {"name": "live_eval", "arguments": {"expr": "{'value': 1}"}},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 62,
+            "method": "tools/call",
+            "params": {"name": "live_eval", "arguments": {"expr": "{'value': 1}"}},
+        }
+    )
 
     structured = response["result"]["structuredContent"]
     assert structured == {"method": "eval", "params": {"expr": "{'value': 1}"}}
@@ -297,12 +313,14 @@ def test_ping_tool_accepts_timeout_for_stressed_live_sets():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"timeout": 45}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 201,
-        "method": "tools/call",
-        "params": {"name": "live_ping", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 201,
+            "method": "tools/call",
+            "params": {"name": "live_ping", "arguments": args},
+        }
+    )
 
     assert bridge.calls == [("ping", args)]
     assert response["result"]["structuredContent"]["method"] == "ping"
@@ -312,12 +330,14 @@ def test_bridge_status_tool_forwards_without_live_api_work():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"timeout": 2}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 202,
-        "method": "tools/call",
-        "params": {"name": "live_bridge_status", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 202,
+            "method": "tools/call",
+            "params": {"name": "live_bridge_status", "arguments": args},
+        }
+    )
 
     assert bridge.calls == [("bridge_status", args)]
     assert response["result"]["structuredContent"]["method"] == "bridge_status"
@@ -326,27 +346,31 @@ def test_bridge_status_tool_forwards_without_live_api_work():
 def test_tool_call_validates_arguments_before_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 20,
-        "method": "tools/call",
-        "params": {
-            "name": "live_call",
-            "arguments": {"ref": {"path": "live_set"}, "method": "create_midi_track", "unexpected": True},
-        },
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 20,
+            "method": "tools/call",
+            "params": {
+                "name": "live_call",
+                "arguments": {"ref": {"path": "live_set"}, "method": "create_midi_track", "unexpected": True},
+            },
+        }
+    )
     assert "unknown fields: unexpected" in response["error"]["message"]
     assert bridge.calls == []
 
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 21,
-        "method": "tools/call",
-        "params": {
-            "name": "live_browser_search",
-            "arguments": {"query": "drum", "limit": 0},
-        },
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 21,
+            "method": "tools/call",
+            "params": {
+                "name": "live_browser_search",
+                "arguments": {"query": "drum", "limit": 0},
+            },
+        }
+    )
     assert "arguments.limit must be >= 1" in response["error"]["message"]
     assert bridge.calls == []
 
@@ -355,12 +379,14 @@ def test_set_summary_tool_forwards_limits_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"track_limit": 8, "clip_slot_limit": 4, "device_limit": 4, "arrangement_clip_limit": 2, "track_query": "bass"}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 21,
-        "method": "tools/call",
-        "params": {"name": "live_set_summary", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 21,
+            "method": "tools/call",
+            "params": {"name": "live_set_summary", "arguments": args},
+        }
+    )
     assert bridge.calls == [("set_summary", args)]
     assert response["result"]["structuredContent"]["method"] == "set_summary"
 
@@ -373,12 +399,14 @@ def test_mutating_tools_accept_expected_set_signature_guard():
         "expected_set_signature": "abc123",
         "timeout": 30,
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 22,
-        "method": "tools/call",
-        "params": {"name": "live_exec", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 22,
+            "method": "tools/call",
+            "params": {"name": "live_exec", "arguments": args},
+        }
+    )
 
     assert bridge.calls == [("exec", args)]
     assert response["result"]["structuredContent"]["method"] == "exec"
@@ -393,12 +421,14 @@ def test_batch_tool_forwards_operations_to_bridge():
             {"method": "children", "params": {"ref": {"path": "live_set"}, "child": "tracks", "limit": 2}},
         ],
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 3,
-        "method": "tools/call",
-        "params": {"name": "live_batch", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {"name": "live_batch", "arguments": args},
+        }
+    )
     assert bridge.calls == [("batch", args)]
     assert response["result"]["structuredContent"]["method"] == "batch"
 
@@ -407,12 +437,14 @@ def test_device_parameters_tool_forwards_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"ref": {"path": "live_set tracks 0 devices 0"}, "query": "threshold", "limit": 5}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 31,
-        "method": "tools/call",
-        "params": {"name": "live_device_parameters", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 31,
+            "method": "tools/call",
+            "params": {"name": "live_device_parameters", "arguments": args},
+        }
+    )
     assert bridge.calls == [("device_parameters", args)]
     assert response["result"]["structuredContent"]["method"] == "device_parameters"
 
@@ -421,12 +453,14 @@ def test_agent_audio_tap_tool_forwards_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"command": "start", "path": "/tmp/agent-tap.wav"}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 32,
-        "method": "tools/call",
-        "params": {"name": "live_agent_audio_tap", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 32,
+            "method": "tools/call",
+            "params": {"name": "live_agent_audio_tap", "arguments": args},
+        }
+    )
     assert bridge.calls == [("agent_audio_tap", args)]
     assert response["result"]["structuredContent"]["method"] == "agent_audio_tap"
 
@@ -434,12 +468,14 @@ def test_agent_audio_tap_tool_forwards_to_bridge():
 def test_agent_audio_tap_tool_requires_command_before_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 321,
-        "method": "tools/call",
-        "params": {"name": "live_agent_audio_tap", "arguments": {"path": "/tmp/agent-tap.wav"}},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 321,
+            "method": "tools/call",
+            "params": {"name": "live_agent_audio_tap", "arguments": {"path": "/tmp/agent-tap.wav"}},
+        }
+    )
 
     assert response["error"]["message"] == "arguments.command is required"
     assert bridge.calls == []
@@ -449,12 +485,14 @@ def test_agent_audio_tap_tool_accepts_stop_command_without_path():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"command": "stop"}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 322,
-        "method": "tools/call",
-        "params": {"name": "live_agent_audio_tap", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 322,
+            "method": "tools/call",
+            "params": {"name": "live_agent_audio_tap", "arguments": args},
+        }
+    )
 
     assert bridge.calls == [("agent_audio_tap", args)]
     assert response["result"]["structuredContent"]["method"] == "agent_audio_tap"
@@ -463,12 +501,14 @@ def test_agent_audio_tap_tool_accepts_stop_command_without_path():
 def test_agent_audio_tap_tool_rejects_unknown_command_before_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 323,
-        "method": "tools/call",
-        "params": {"name": "live_agent_audio_tap", "arguments": {"command": "pause"}},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 323,
+            "method": "tools/call",
+            "params": {"name": "live_agent_audio_tap", "arguments": {"command": "pause"}},
+        }
+    )
 
     assert response["error"]["message"] == "arguments.command must be one of: open, start, stop, status"
     assert bridge.calls == []
@@ -483,21 +523,25 @@ def test_agent_audio_tap_setup_and_transport_tools_forward_to_bridge():
         "remove_existing": True,
         "reset_time": 0,
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 33,
-        "method": "tools/call",
-        "params": {"name": "live_agent_audio_tap_setup", "arguments": setup_args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 33,
+            "method": "tools/call",
+            "params": {"name": "live_agent_audio_tap_setup", "arguments": setup_args},
+        }
+    )
     assert response["result"]["structuredContent"]["method"] == "agent_audio_tap_setup"
 
     transport_args = {"action": "play", "time": 0}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 34,
-        "method": "tools/call",
-        "params": {"name": "live_transport", "arguments": transport_args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 34,
+            "method": "tools/call",
+            "params": {"name": "live_transport", "arguments": transport_args},
+        }
+    )
     assert bridge.calls == [("agent_audio_tap_setup", setup_args), ("transport", transport_args)]
     assert response["result"]["structuredContent"]["method"] == "transport"
 
@@ -505,12 +549,14 @@ def test_agent_audio_tap_setup_and_transport_tools_forward_to_bridge():
 def test_transport_tool_rejects_unknown_action_before_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 331,
-        "method": "tools/call",
-        "params": {"name": "live_transport", "arguments": {"action": "restart"}},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 331,
+            "method": "tools/call",
+            "params": {"name": "live_transport", "arguments": {"action": "restart"}},
+        }
+    )
 
     assert response["error"]["message"] == "arguments.action must be one of: play, continue, stop, status"
     assert bridge.calls == []
@@ -520,12 +566,14 @@ def test_parameter_set_tool_forwards_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"ref": {"id": 99}, "value": 0.75, "coerce": True}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 36,
-        "method": "tools/call",
-        "params": {"name": "live_parameter_set", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 36,
+            "method": "tools/call",
+            "params": {"name": "live_parameter_set", "arguments": args},
+        }
+    )
     assert bridge.calls == [("parameter_set", args)]
     assert response["result"]["structuredContent"]["method"] == "parameter_set"
 
@@ -534,21 +582,25 @@ def test_clip_note_tools_forward_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
     read_args = {"ref": {"path": "live_set tracks 0 clip_slots 0 clip"}, "limit": 16}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 32,
-        "method": "tools/call",
-        "params": {"name": "live_clip_notes", "arguments": read_args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 32,
+            "method": "tools/call",
+            "params": {"name": "live_clip_notes", "arguments": read_args},
+        }
+    )
     assert response["result"]["structuredContent"]["method"] == "clip_notes"
 
     update_args = {"ref": {"path": "live_set tracks 0 clip_slots 0 clip"}, "updates": [{"note_id": 1, "velocity": 90}]}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 33,
-        "method": "tools/call",
-        "params": {"name": "live_clip_update_notes", "arguments": update_args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 33,
+            "method": "tools/call",
+            "params": {"name": "live_clip_update_notes", "arguments": update_args},
+        }
+    )
     assert bridge.calls == [("clip_notes", read_args), ("clip_update_notes", update_args)]
     assert response["result"]["structuredContent"]["method"] == "clip_update_notes"
 
@@ -564,12 +616,14 @@ def test_clip_add_notes_tool_forwards_to_bridge():
         "fire": True,
         "notes": [{"pitch": 60, "start_time": 0.0, "duration": 1.0, "velocity": 80}],
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 38,
-        "method": "tools/call",
-        "params": {"name": "live_clip_add_notes", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 38,
+            "method": "tools/call",
+            "params": {"name": "live_clip_add_notes", "arguments": args},
+        }
+    )
     assert bridge.calls == [("clip_add_notes", args)]
     assert response["result"]["structuredContent"]["method"] == "clip_add_notes"
 
@@ -582,12 +636,14 @@ def test_clip_duplicate_to_arrangement_tool_forwards_to_bridge():
         "clip": {"path": "live_set tracks 0 clip_slots 0 clip"},
         "destination_time": 16.0,
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 39,
-        "method": "tools/call",
-        "params": {"name": "live_clip_duplicate_to_arrangement", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 39,
+            "method": "tools/call",
+            "params": {"name": "live_clip_duplicate_to_arrangement", "arguments": args},
+        }
+    )
     assert bridge.calls == [("clip_duplicate_to_arrangement", args)]
     assert response["result"]["structuredContent"]["method"] == "clip_duplicate_to_arrangement"
 
@@ -601,12 +657,14 @@ def test_clip_envelope_tool_forwards_to_bridge():
         "create": True,
         "insert_steps": [{"time": 0.0, "duration": 1.0, "value": 0.5}],
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 34,
-        "method": "tools/call",
-        "params": {"name": "live_clip_envelope", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 34,
+            "method": "tools/call",
+            "params": {"name": "live_clip_envelope", "arguments": args},
+        }
+    )
     assert bridge.calls == [("clip_envelope", args)]
     assert response["result"]["structuredContent"]["method"] == "clip_envelope"
 
@@ -620,12 +678,14 @@ def test_clip_velocity_envelope_tool_forwards_to_bridge():
         "min_value": 0.2,
         "max_value": 0.8,
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 37,
-        "method": "tools/call",
-        "params": {"name": "live_clip_velocity_envelope", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 37,
+            "method": "tools/call",
+            "params": {"name": "live_clip_velocity_envelope", "arguments": args},
+        }
+    )
     assert bridge.calls == [("clip_velocity_envelope", args)]
     assert response["result"]["structuredContent"]["method"] == "clip_velocity_envelope"
 
@@ -637,12 +697,14 @@ def test_clip_warp_markers_tool_forwards_to_bridge():
         "ref": {"id": 77},
         "move_markers": [{"beat_time": 4.0, "beat_time_delta": 0.25}],
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 35,
-        "method": "tools/call",
-        "params": {"name": "live_clip_warp_markers", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 35,
+            "method": "tools/call",
+            "params": {"name": "live_clip_warp_markers", "arguments": args},
+        }
+    )
     assert bridge.calls == [("clip_warp_markers", args)]
     assert response["result"]["structuredContent"]["method"] == "clip_warp_markers"
 
@@ -656,21 +718,25 @@ def test_track_audio_and_device_tools_forward_to_bridge():
         "destination_time": 32.0,
         "name": "Hook",
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 42,
-        "method": "tools/call",
-        "params": {"name": "live_track_create_audio_clip", "arguments": audio_args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 42,
+            "method": "tools/call",
+            "params": {"name": "live_track_create_audio_clip", "arguments": audio_args},
+        }
+    )
     assert response["result"]["structuredContent"]["method"] == "track_create_audio_clip"
 
     device_args = {"ref": {"path": "live_set tracks 0"}, "device_name": "EQ Eight", "device_index": -1}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 43,
-        "method": "tools/call",
-        "params": {"name": "live_track_insert_device", "arguments": device_args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 43,
+            "method": "tools/call",
+            "params": {"name": "live_track_insert_device", "arguments": device_args},
+        }
+    )
     assert bridge.calls == [("track_create_audio_clip", audio_args), ("track_insert_device", device_args)]
     assert response["result"]["structuredContent"]["method"] == "track_insert_device"
 
@@ -696,7 +762,7 @@ def test_agent_m4l_device_tool_builds_and_forwards(monkeypatch, tmp_path):
         },
         "webui": {
             "title": "Wobble",
-            "html": "<html><script src=\"device.js\"></script></html>",
+            "html": '<html><script src="device.js"></script></html>',
             "js": "window.largeSource = true;",
             "presentation_rect": [0, 0, 320, 160],
             "controls": [{"id": "dial", "label": "Amount", "value": 0.5}],
@@ -704,12 +770,14 @@ def test_agent_m4l_device_tool_builds_and_forwards(monkeypatch, tmp_path):
         },
         "install": False,
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 44,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 44,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
     forwarded = bridge.calls[0][1]
     assert bridge.calls[0][0] == "agent_m4l_device"
     assert forwarded["device_name"] == "AgentM4L_audio_effect_Wobble"
@@ -741,12 +809,14 @@ def test_agent_m4l_cleanup_tool_forwards_to_bridge():
     server = make_server(bridge)
     args = {"delete": False, "role": "audio_effect", "track_query": "scratch"}
 
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 804,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_cleanup", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 804,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_cleanup", "arguments": args},
+        }
+    )
 
     assert bridge.calls == [("agent_m4l_cleanup", args)]
     assert response["result"]["structuredContent"]["method"] == "agent_m4l_cleanup"
@@ -755,32 +825,37 @@ def test_agent_m4l_cleanup_tool_forwards_to_bridge():
 def test_agent_m4l_device_tool_preflight_only_reports_compact_errors(tmp_path):
     bridge = FakeBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 54,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Bad Patch",
-            "preflight_only": True,
-            "patch": {
-                "objects": [
-                    {"id": "dial", "text": "flonum"},
-                    {"id": "dial", "text": "flonum"},
-                ],
-                "connections": [
-                    {"from": "missing", "to": "dial"},
-                    {"from": "dial"},
-                ],
-                "ui_bindings": [
-                    {"source": "ghost", "target": "amount"},
-                ],
-                "webui": {"id": "panel", "object": "jbrowser~"},
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 54,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Bad Patch",
+                    "preflight_only": True,
+                    "patch": {
+                        "objects": [
+                            {"id": "dial", "text": "flonum"},
+                            {"id": "dial", "text": "flonum"},
+                        ],
+                        "connections": [
+                            {"from": "missing", "to": "dial"},
+                            {"from": "dial"},
+                        ],
+                        "ui_bindings": [
+                            {"source": "ghost", "target": "amount"},
+                        ],
+                        "webui": {"id": "panel", "object": "jbrowser~"},
+                    },
+                    "command_file": str(tmp_path / "command.json"),
+                    "status_file": str(tmp_path / "status.json"),
+                },
             },
-            "command_file": str(tmp_path / "command.json"),
-            "status_file": str(tmp_path / "status.json"),
-        }},
-    })
+        }
+    )
 
     payload = response["result"]["structuredContent"]
     codes = {item["code"] for item in payload["preflight"]["errors"]}
@@ -799,25 +874,30 @@ def test_agent_m4l_device_tool_preflight_only_reports_compact_errors(tmp_path):
 def test_agent_m4l_device_tool_attaches_preflight_without_forwarding_flag(tmp_path):
     bridge = FakeBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 55,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Good Patch",
-            "preflight": True,
-            "build": False,
-            "load": False,
-            "target_track": {"path": "live_set tracks 0"},
-            "patch": {
-                "objects": [{"id": "gain", "text": "*~ 0.5"}],
-                "connections": [{"from": "plugin", "to": "gain"}, {"from": "gain", "to": "plugout"}],
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 55,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Good Patch",
+                    "preflight": True,
+                    "build": False,
+                    "load": False,
+                    "target_track": {"path": "live_set tracks 0"},
+                    "patch": {
+                        "objects": [{"id": "gain", "text": "*~ 0.5"}],
+                        "connections": [{"from": "plugin", "to": "gain"}, {"from": "gain", "to": "plugout"}],
+                    },
+                    "command_file": str(tmp_path / "command.json"),
+                    "status_file": str(tmp_path / "status.json"),
+                },
             },
-            "command_file": str(tmp_path / "command.json"),
-            "status_file": str(tmp_path / "status.json"),
-        }},
-    })
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     payload = response["result"]["structuredContent"]
@@ -832,17 +912,22 @@ def test_agent_m4l_device_tool_preflight_counts_top_level_webui(tmp_path):
     server = make_server(bridge)
     html_path = tmp_path / "panel.html"
     html_path.write_text("<html></html>", encoding="utf-8")
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 56,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Panel Only",
-            "preflight_only": True,
-            "webui": {"id": "panel", "object": "jbrowser~", "html_path": str(html_path)},
-        }},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 56,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Panel Only",
+                    "preflight_only": True,
+                    "webui": {"id": "panel", "object": "jbrowser~", "html_path": str(html_path)},
+                },
+            },
+        }
+    )
 
     preflight = response["result"]["structuredContent"]["preflight"]
     assert bridge.calls == []
@@ -855,24 +940,29 @@ def test_agent_m4l_preflight_reports_presentation_bounds_and_clip_warnings(tmp_p
     html_path.write_text("<html></html>", encoding="utf-8")
     server = make_server(FakeBridge())
 
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 807,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "instrument",
-            "name": "Bounds Warning",
-            "preflight_only": True,
-            "patch": {
-                "device_width": 320,
-                "device_height": 130,
-                "objects": [
-                    {"id": "keys", "text": "kslider", "presentation_rect": [12, 12, 260, 58]},
-                ],
-                "webui": {"id": "panel", "html_path": str(html_path), "presentation_rect": [280, 20, 100, 130]},
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 807,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "instrument",
+                    "name": "Bounds Warning",
+                    "preflight_only": True,
+                    "patch": {
+                        "device_width": 320,
+                        "device_height": 130,
+                        "objects": [
+                            {"id": "keys", "text": "kslider", "presentation_rect": [12, 12, 260, 58]},
+                        ],
+                        "webui": {"id": "panel", "html_path": str(html_path), "presentation_rect": [280, 20, 100, 130]},
+                    },
+                },
             },
-        }},
-    })
+        }
+    )
 
     preflight = response["result"]["structuredContent"]["preflight"]
     warning_codes = {item["code"] for item in preflight["warnings"]}
@@ -893,20 +983,25 @@ def test_agent_m4l_preflight_reports_presentation_bounds_and_clip_warnings(tmp_p
 def test_agent_m4l_preflight_warns_on_tall_device_height(tmp_path):
     server = make_server(FakeBridge())
 
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 808,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "name": "Tall Freeform UI",
-            "preflight_only": True,
-            "patch": {
-                "device_height": 320,
-                "objects": [{"id": "scope", "text": "panel", "presentation_rect": [0, 0, 400, 300]}],
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 808,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "name": "Tall Freeform UI",
+                    "preflight_only": True,
+                    "patch": {
+                        "device_height": 320,
+                        "objects": [{"id": "scope", "text": "panel", "presentation_rect": [0, 0, 400, 300]}],
+                    },
+                },
             },
-        }},
-    })
+        }
+    )
 
     preflight = response["result"]["structuredContent"]["preflight"]
     assert preflight["ok"] is True
@@ -916,20 +1011,25 @@ def test_agent_m4l_preflight_warns_on_tall_device_height(tmp_path):
 def test_agent_m4l_preflight_warns_on_wide_device_width(tmp_path):
     server = make_server(FakeBridge())
 
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 809,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "name": "Wide Freeform UI",
-            "preflight_only": True,
-            "patch": {
-                "device_width": 1120,
-                "objects": [{"id": "scene", "text": "panel", "presentation_rect": [0, 0, 1100, 150]}],
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 809,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "name": "Wide Freeform UI",
+                    "preflight_only": True,
+                    "patch": {
+                        "device_width": 1120,
+                        "objects": [{"id": "scene", "text": "panel", "presentation_rect": [0, 0, 1100, 150]}],
+                    },
+                },
             },
-        }},
-    })
+        }
+    )
 
     preflight = response["result"]["structuredContent"]["preflight"]
     assert preflight["ok"] is True
@@ -941,21 +1041,26 @@ def test_agent_m4l_preflight_warns_on_direct_live_api_observers(tmp_path):
     html_path.write_text("<html></html>")
     server = make_server(FakeBridge())
 
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 809,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "instrument",
-            "name": "Observer Warning",
-            "preflight_only": True,
-            "patch": {
-                "live_api_observers": True,
-                "objects": [{"id": "osc", "text": "cycle~ 220"}],
-                "webui": {"id": "panel", "html_path": str(html_path)},
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 809,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "instrument",
+                    "name": "Observer Warning",
+                    "preflight_only": True,
+                    "patch": {
+                        "live_api_observers": True,
+                        "objects": [{"id": "osc", "text": "cycle~ 220"}],
+                        "webui": {"id": "panel", "html_path": str(html_path)},
+                    },
+                },
             },
-        }},
-    })
+        }
+    )
 
     preflight = response["result"]["structuredContent"]["preflight"]
     assert preflight["ok"] is True
@@ -965,47 +1070,62 @@ def test_agent_m4l_preflight_warns_on_direct_live_api_observers(tmp_path):
 def test_agent_m4l_device_tool_preflight_set_uses_recovery_patch(tmp_path):
     bridge = FakeBridge()
     command_file = tmp_path / "command.json"
-    command_file.write_text(json.dumps({
-        "id": "patch1",
-        "command": "update",
-        "patch": {
-            "objects": [{"id": "gain", "text": "flonum"}, {"id": "macro", "text": "live.dial"}],
-            "ui_bindings": [{"source": "macro", "target": "virtual_amount"}],
-        },
-    }), encoding="utf-8")
+    command_file.write_text(
+        json.dumps(
+            {
+                "id": "patch1",
+                "command": "update",
+                "patch": {
+                    "objects": [{"id": "gain", "text": "flonum"}, {"id": "macro", "text": "live.dial"}],
+                    "ui_bindings": [{"source": "macro", "target": "virtual_amount"}],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     server = make_server(bridge)
 
-    ok_response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 57,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Recover Set",
-            "preflight_only": True,
-            "command": "set",
-            "values": [{"id": "virtual_amount", "value": 0.25}],
-            "command_file": str(command_file),
-        }},
-    })
+    ok_response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 57,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Recover Set",
+                    "preflight_only": True,
+                    "command": "set",
+                    "values": [{"id": "virtual_amount", "value": 0.25}],
+                    "command_file": str(command_file),
+                },
+            },
+        }
+    )
     ok_preflight = ok_response["result"]["structuredContent"]["preflight"]
     assert ok_preflight["ok"] is True
     assert ok_preflight["recovered_patch"] is True
     assert ok_preflight["counts"]["values"] == 1
 
-    bad_response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 58,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Recover Set",
-            "preflight_only": True,
-            "command": "set",
-            "values": [{"id": "missing_value", "value": 0.25}],
-            "command_file": str(command_file),
-        }},
-    })
+    bad_response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 58,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Recover Set",
+                    "preflight_only": True,
+                    "command": "set",
+                    "values": [{"id": "missing_value", "value": 0.25}],
+                    "command_file": str(command_file),
+                },
+            },
+        }
+    )
     bad_preflight = bad_response["result"]["structuredContent"]["preflight"]
     assert bad_preflight["ok"] is False
     assert {"code": "value_target_missing", "id": "missing_value"} in bad_preflight["errors"]
@@ -1043,21 +1163,26 @@ def test_agent_m4l_device_tool_retries_fresh_build_load(monkeypatch, tmp_path):
 
     bridge = RetryBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 48,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "instrument",
-            "instance_id": "orbit_glass_synth_001",
-            "name": "Orbit Glass Synth",
-            "target_track": {"path": "live_set tracks 4"},
-            "patch": {"objects": []},
-            "install": False,
-            "load_retry_timeout": 1.0,
-            "load_retry_interval": 0.0,
-        }},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 48,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "instrument",
+                    "instance_id": "orbit_glass_synth_001",
+                    "name": "Orbit Glass Synth",
+                    "target_track": {"path": "live_set tracks 4"},
+                    "patch": {"objects": []},
+                    "install": False,
+                    "load_retry_timeout": 1.0,
+                    "load_retry_interval": 0.0,
+                },
+            },
+        }
+    )
 
     result = response["result"]["structuredContent"]
     assert len(bridge.calls) == 2
@@ -1080,12 +1205,14 @@ def test_agent_m4l_device_tool_handles_value_updates_directly(tmp_path):
         "status_file": str(status_file),
         "udp": False,
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 45,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 45,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
     payload = json.loads(command_file.read_text(encoding="utf-8"))
     result = response["result"]["structuredContent"]
     assert bridge.calls == []
@@ -1099,19 +1226,24 @@ def test_agent_m4l_device_tool_handles_web_reload_directly(tmp_path):
     bridge = FakeBridge()
     server = make_server(bridge)
     command_file = tmp_path / "command.json"
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 46,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Wobble",
-            "command": "web_reload",
-            "webuis": [{"id": "panel", "html_path": "/tmp/panel/index.html"}],
-            "command_file": str(command_file),
-            "udp": False,
-        }},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 46,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Wobble",
+                    "command": "web_reload",
+                    "webuis": [{"id": "panel", "html_path": "/tmp/panel/index.html"}],
+                    "command_file": str(command_file),
+                    "udp": False,
+                },
+            },
+        }
+    )
 
     payload = json.loads(command_file.read_text(encoding="utf-8"))
     result = response["result"]["structuredContent"]
@@ -1137,19 +1269,24 @@ def test_agent_m4l_device_tool_web_reload_patch_preserves_recovery_sidecar(tmp_p
     }
     server_module.write_agent_m4l_recovery_patch(str(command_file), full_patch)
 
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 47,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Wobble",
-            "command": "web_reload",
-            "patch": {"webuis": [{"id": "panel", "html_path": "/tmp/reloaded/index.html"}]},
-            "command_file": str(command_file),
-            "udp": False,
-        }},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 47,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Wobble",
+                    "command": "web_reload",
+                    "patch": {"webuis": [{"id": "panel", "html_path": "/tmp/reloaded/index.html"}]},
+                    "command_file": str(command_file),
+                    "udp": False,
+                },
+            },
+        }
+    )
 
     sidecar = json.loads(server_module.agent_m4l_sidecar_recovery_path(str(command_file)).read_text(encoding="utf-8"))
     assert bridge.calls == []
@@ -1168,12 +1305,14 @@ def test_agent_m4l_device_tool_skips_oversized_direct_udp(tmp_path):
         "patch": {"objects": [{"id": "big", "text": "comment " + ("x" * 70000)}]},
         "command_file": str(command_file),
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 145,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 145,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
 
     result = response["result"]["structuredContent"]
     assert bridge.calls == []
@@ -1186,28 +1325,38 @@ def test_agent_m4l_device_tool_direct_update_preserves_recovery_patch(tmp_path):
     server = make_server(bridge)
     command_file = tmp_path / "command.json"
     status_file = tmp_path / "status.json"
-    command_file.write_text(json.dumps({
-        "id": "patch1",
-        "command": "update",
-        "objects": [{"id": "dial", "text": "flonum"}],
-        "connections": [],
-        "device_width": 640,
-        "device_height": 220,
-    }), encoding="utf-8")
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 50,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Wobble",
-            "command": "set",
-            "values": [{"id": "dial", "value": 0.7}],
-            "command_file": str(command_file),
-            "status_file": str(status_file),
-            "udp": False,
-        }},
-    })
+    command_file.write_text(
+        json.dumps(
+            {
+                "id": "patch1",
+                "command": "update",
+                "objects": [{"id": "dial", "text": "flonum"}],
+                "connections": [],
+                "device_width": 640,
+                "device_height": 220,
+            }
+        ),
+        encoding="utf-8",
+    )
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 50,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Wobble",
+                    "command": "set",
+                    "values": [{"id": "dial", "value": 0.7}],
+                    "command_file": str(command_file),
+                    "status_file": str(status_file),
+                    "udp": False,
+                },
+            },
+        }
+    )
 
     payload = json.loads(command_file.read_text(encoding="utf-8"))
     sidecar = json.loads(server_module.agent_m4l_sidecar_recovery_path(str(command_file)).read_text(encoding="utf-8"))
@@ -1224,26 +1373,36 @@ def test_agent_m4l_device_tool_recovers_patch_from_sidecar(tmp_path):
     command_file = tmp_path / "command.json"
     status_file = tmp_path / "status.json"
     patch = {"objects": [{"id": "dial", "text": "flonum"}], "connections": []}
-    command_file.write_text(json.dumps({
-        "id": "status1",
-        "command": "status",
-        "patch": None,
-    }), encoding="utf-8")
+    command_file.write_text(
+        json.dumps(
+            {
+                "id": "status1",
+                "command": "status",
+                "patch": None,
+            }
+        ),
+        encoding="utf-8",
+    )
     server_module.write_agent_m4l_recovery_patch(str(command_file), patch)
 
-    response = make_server(FakeBridge()).handle({
-        "jsonrpc": "2.0",
-        "id": 51,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Wobble",
-            "command": "status",
-            "command_file": str(command_file),
-            "status_file": str(status_file),
-            "udp": False,
-        }},
-    })
+    response = make_server(FakeBridge()).handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 51,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Wobble",
+                    "command": "status",
+                    "command_file": str(command_file),
+                    "status_file": str(status_file),
+                    "udp": False,
+                },
+            },
+        }
+    )
 
     payload = json.loads(command_file.read_text(encoding="utf-8"))
     assert response["result"]["structuredContent"]["direct"] is True
@@ -1258,21 +1417,26 @@ def test_agent_m4l_device_tool_writes_recovery_sidecar_for_forwarded_patch(tmp_p
     status_file = tmp_path / "status.json"
     patch = {"objects": [{"id": "dial", "text": "flonum"}], "connections": []}
 
-    make_server(bridge).handle({
-        "jsonrpc": "2.0",
-        "id": 53,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Wobble",
-            "build": False,
-            "target_track": {"path": "live_set tracks 0"},
-            "command_file": str(command_file),
-            "status_file": str(status_file),
-            "patch": patch,
-            "udp": False,
-        }},
-    })
+    make_server(bridge).handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 53,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Wobble",
+                    "build": False,
+                    "target_track": {"path": "live_set tracks 0"},
+                    "command_file": str(command_file),
+                    "status_file": str(status_file),
+                    "patch": patch,
+                    "udp": False,
+                },
+            },
+        }
+    )
 
     assert bridge.calls[0][0] == "agent_m4l_device"
     sidecar = server_module.agent_m4l_sidecar_recovery_path(str(command_file))
@@ -1290,21 +1454,26 @@ def test_agent_m4l_device_tool_load_false_patch_uses_direct_update(tmp_path):
     status_file = tmp_path / "status.json"
     patch = {"objects": [{"id": "dial", "text": "flonum"}], "connections": []}
 
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 54,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Wobble",
-            "command": "update",
-            "load": False,
-            "udp": False,
-            "patch": patch,
-            "command_file": str(command_file),
-            "status_file": str(status_file),
-        }},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 54,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Wobble",
+                    "command": "update",
+                    "load": False,
+                    "udp": False,
+                    "patch": patch,
+                    "command_file": str(command_file),
+                    "status_file": str(status_file),
+                },
+            },
+        }
+    )
 
     result = response["result"]["structuredContent"]
     payload = json.loads(command_file.read_text(encoding="utf-8"))
@@ -1335,19 +1504,24 @@ def test_agent_m4l_device_wait_status_uses_default_status_file_mtime(monkeypatch
         return {"event": "status", "command_id": command_id}
 
     monkeypatch.setattr(server_module, "wait_agent_m4l_status", fake_wait_status)
-    response = make_server(FakeBridge()).handle({
-        "jsonrpc": "2.0",
-        "id": 57,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Default Wait",
-            "command": "status",
-            "load": False,
-            "udp": False,
-            "wait_status": True,
-        }},
-    })
+    response = make_server(FakeBridge()).handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 57,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Default Wait",
+                    "command": "status",
+                    "load": False,
+                    "udp": False,
+                    "wait_status": True,
+                },
+            },
+        }
+    )
 
     assert captured["path"] == str(status_path)
     assert captured["previous_mtime"] == previous_mtime
@@ -1388,12 +1562,14 @@ def test_agent_m4l_device_tool_materializes_webui_arrays(monkeypatch, tmp_path):
         ],
         "install": False,
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 47,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 47,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     assert len(forwarded["webuis"]) == 2
@@ -1419,7 +1595,7 @@ def test_agent_m4l_device_tool_materializes_existing_webui_assets(monkeypatch, t
     monkeypatch.setattr(agent_m4l, "GENERATED_DIR", tmp_path)
     monkeypatch.setattr(agent_m4l, "WEBUI_DIR", tmp_path / "webui")
     existing = tmp_path / "existing.html"
-    existing.write_text("<html><script src=\"lib/scene.js\"></script></html>", encoding="utf-8")
+    existing.write_text('<html><script src="lib/scene.js"></script></html>', encoding="utf-8")
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {
@@ -1435,12 +1611,14 @@ def test_agent_m4l_device_tool_materializes_existing_webui_assets(monkeypatch, t
         },
         "install": False,
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 52,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 52,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     assert forwarded["patch"]["webui"]["html_path"] == str(existing)
@@ -1475,12 +1653,14 @@ def test_agent_m4l_device_tool_materializes_patch_webui(monkeypatch, tmp_path):
         },
         "install": False,
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 49,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 49,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     assert forwarded["patch"]["webui"]["object"] == "jbrowser~"
@@ -1520,12 +1700,14 @@ def test_agent_m4l_device_tool_waits_for_status_without_forwarding_wait_args(tmp
         "wait_status": True,
         "status_timeout": 0.2,
     }
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 46,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 46,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     assert "wait_status" not in forwarded
@@ -1541,19 +1723,24 @@ def test_agent_m4l_device_tool_can_return_compact_status(tmp_path):
         def request(self, method, params):
             self.calls.append((method, params))
             status_file = Path(params["status_file"])
-            status_file.write_text(json.dumps({
-                "event": "set",
-                "command_id": "cmd1",
-                "dynamic_objects": 4,
-                "changed": 1,
-                "source": "dial",
-                "target": "gain",
-                "state": {
-                    "gain": 0.5,
-                    "web_read_pending": 0,
-                    "web_panel_ready": 1,
-                },
-            }), encoding="utf-8")
+            status_file.write_text(
+                json.dumps(
+                    {
+                        "event": "set",
+                        "command_id": "cmd1",
+                        "dynamic_objects": 4,
+                        "changed": 1,
+                        "source": "dial",
+                        "target": "gain",
+                        "state": {
+                            "gain": 0.5,
+                            "web_read_pending": 0,
+                            "web_panel_ready": 1,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
             return {"method": method, "command_id": "cmd1", "status_file": str(status_file), "params": params}
 
     bridge = StatusBridge()
@@ -1571,12 +1758,14 @@ def test_agent_m4l_device_tool_can_return_compact_status(tmp_path):
         "status_detail": "summary",
     }
 
-    response = mcp.handle({
-        "jsonrpc": "2.0",
-        "id": 48,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 48,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     status = response["result"]["structuredContent"]["status"]
@@ -1594,16 +1783,21 @@ def test_agent_m4l_device_compact_status_can_include_requested_state_keys(tmp_pa
         def request(self, method, params):
             self.calls.append((method, params))
             status_file = Path(params["status_file"])
-            status_file.write_text(json.dumps({
-                "event": "status",
-                "command_id": "cmd1",
-                "dynamic_objects": 4,
-                "state": {
-                    "drive_amount": 0.85,
-                    "level_meter": 0.123,
-                    "web_panel_ready": 1,
-                },
-            }), encoding="utf-8")
+            status_file.write_text(
+                json.dumps(
+                    {
+                        "event": "status",
+                        "command_id": "cmd1",
+                        "dynamic_objects": 4,
+                        "state": {
+                            "drive_amount": 0.85,
+                            "level_meter": 0.123,
+                            "web_panel_ready": 1,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
             return {"method": method, "command_id": "cmd1", "status_file": str(status_file), "params": params}
 
     bridge = StatusBridge()
@@ -1621,12 +1815,14 @@ def test_agent_m4l_device_compact_status_can_include_requested_state_keys(tmp_pa
         "status_state_keys": ["level_meter"],
     }
 
-    response = mcp.handle({
-        "jsonrpc": "2.0",
-        "id": 481,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 481,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     status = response["result"]["structuredContent"]["status"]
@@ -1642,16 +1838,21 @@ def test_agent_m4l_device_compact_status_can_return_requested_state_keys_only(tm
         def request(self, method, params):
             self.calls.append((method, params))
             status_file = Path(params["status_file"])
-            status_file.write_text(json.dumps({
-                "event": "status",
-                "command_id": "cmd1",
-                "dynamic_objects": 4,
-                "state": {
-                    "level_meter": 0.25,
-                    "web_panel_ready": 1,
-                    "command_wake_count": 12,
-                },
-            }), encoding="utf-8")
+            status_file.write_text(
+                json.dumps(
+                    {
+                        "event": "status",
+                        "command_id": "cmd1",
+                        "dynamic_objects": 4,
+                        "state": {
+                            "level_meter": 0.25,
+                            "web_panel_ready": 1,
+                            "command_wake_count": 12,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
             return {"method": method, "command_id": "cmd1", "status_file": str(status_file), "params": params}
 
     bridge = StatusBridge()
@@ -1670,12 +1871,14 @@ def test_agent_m4l_device_compact_status_can_return_requested_state_keys_only(tm
         "status_state_keys_only": True,
     }
 
-    response = mcp.handle({
-        "jsonrpc": "2.0",
-        "id": 482,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 482,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     status = response["result"]["structuredContent"]["status"]
@@ -1690,17 +1893,22 @@ def test_agent_m4l_device_tool_can_return_compact_status_alias(tmp_path):
         def request(self, method, params):
             self.calls.append((method, params))
             status_file = Path(params["status_file"])
-            status_file.write_text(json.dumps({
-                "event": "set",
-                "command_id": "cmd1",
-                "dynamic_objects": 4,
-                "changed": 1,
-                "state": {
-                    "gain": 0.5,
-                    "web_read_pending": 0,
-                    "web_panel_ready": 1,
-                },
-            }), encoding="utf-8")
+            status_file.write_text(
+                json.dumps(
+                    {
+                        "event": "set",
+                        "command_id": "cmd1",
+                        "dynamic_objects": 4,
+                        "changed": 1,
+                        "state": {
+                            "gain": 0.5,
+                            "web_read_pending": 0,
+                            "web_panel_ready": 1,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
             return {"method": method, "command_id": "cmd1", "status_file": str(status_file), "params": params}
 
     bridge = StatusBridge()
@@ -1718,12 +1926,14 @@ def test_agent_m4l_device_tool_can_return_compact_status_alias(tmp_path):
         "compact_status": True,
     }
 
-    response = mcp.handle({
-        "jsonrpc": "2.0",
-        "id": 49,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 49,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     status = response["result"]["structuredContent"]["status"]
@@ -1771,19 +1981,24 @@ def test_agent_m4l_device_tool_can_return_compact_result(tmp_path):
 
     bridge = ResultBridge()
     mcp = make_server(bridge)
-    response = mcp.handle({
-        "jsonrpc": "2.0",
-        "id": 64,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "instrument",
-            "instance_id": "Compact Result",
-            "build": False,
-            "target_track": {"path": "live_set tracks 1"},
-            "patch": {"objects": []},
-            "compact_result": True,
-        }},
-    })
+    response = mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 64,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "instrument",
+                    "instance_id": "Compact Result",
+                    "build": False,
+                    "target_track": {"path": "live_set tracks 1"},
+                    "patch": {"objects": []},
+                    "compact_result": True,
+                },
+            },
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     result = response["result"]["structuredContent"]
@@ -1814,19 +2029,24 @@ def test_agent_m4l_device_tool_result_detail_summary_alias_is_server_side(tmp_pa
 
     bridge = ResultBridge()
     mcp = make_server(bridge)
-    response = mcp.handle({
-        "jsonrpc": "2.0",
-        "id": 65,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Alias",
-            "build": False,
-            "target_track": {"path": "live_set tracks 0"},
-            "command": "status",
-            "result_detail": "summary",
-        }},
-    })
+    response = mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 65,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Alias",
+                    "build": False,
+                    "target_track": {"path": "live_set tracks 0"},
+                    "command": "status",
+                    "result_detail": "summary",
+                },
+            },
+        }
+    )
 
     forwarded = bridge.calls[0][1]
     result = response["result"]["structuredContent"]
@@ -1838,20 +2058,25 @@ def test_agent_m4l_device_tool_result_detail_summary_alias_is_server_side(tmp_pa
 def test_agent_m4l_device_tool_compact_result_preserves_direct_fast_path(tmp_path):
     bridge = FakeBridge()
     command_file = tmp_path / "command.json"
-    response = make_server(bridge).handle({
-        "jsonrpc": "2.0",
-        "id": 66,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": {
-            "role": "audio_effect",
-            "instance_id": "Direct Compact",
-            "command": "set",
-            "values": [{"id": "gain", "value": 0.25}],
-            "command_file": str(command_file),
-            "udp": False,
-            "compact_result": True,
-        }},
-    })
+    response = make_server(bridge).handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 66,
+            "method": "tools/call",
+            "params": {
+                "name": "live_agent_m4l_device",
+                "arguments": {
+                    "role": "audio_effect",
+                    "instance_id": "Direct Compact",
+                    "command": "set",
+                    "values": [{"id": "gain", "value": 0.25}],
+                    "command_file": str(command_file),
+                    "udp": False,
+                    "compact_result": True,
+                },
+            },
+        }
+    )
 
     payload = json.loads(command_file.read_text(encoding="utf-8"))
     result = response["result"]["structuredContent"]
@@ -1905,12 +2130,14 @@ def test_agent_m4l_device_tool_uses_webui_wait_status_default(monkeypatch, tmp_p
         "wait_status": True,
     }
 
-    response = mcp.handle({
-        "jsonrpc": "2.0",
-        "id": 47,
-        "method": "tools/call",
-        "params": {"name": "live_agent_m4l_device", "arguments": args},
-    })
+    response = mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 47,
+            "method": "tools/call",
+            "params": {"name": "live_agent_m4l_device", "arguments": args},
+        }
+    )
 
     assert response["result"]["structuredContent"]["status"]["event"] == "reload"
     assert captured["timeout"] == 9.0
@@ -1951,11 +2178,16 @@ def test_agent_m4l_host_pads_status_writes_to_cover_stale_bytes():
 def test_wait_agent_m4l_status_preserves_host_runtime_version(tmp_path):
     status_file = tmp_path / "status.json"
     before = 1.0
-    status_file.write_text(json.dumps({
-        "event": "reload",
-        "command_id": "new",
-        "host_runtime_version": "web-clear-guard-1",
-    }), encoding="utf-8")
+    status_file.write_text(
+        json.dumps(
+            {
+                "event": "reload",
+                "command_id": "new",
+                "host_runtime_version": "web-clear-guard-1",
+            }
+        ),
+        encoding="utf-8",
+    )
 
     result = wait_agent_m4l_status(str(status_file), before, "new", 0.2, 0.01, "reload")
     compact = summarize_agent_m4l_status(result)
@@ -1969,12 +2201,17 @@ def test_wait_agent_m4l_status_preserves_host_runtime_version(tmp_path):
 def test_wait_agent_m4l_status_accepts_reload_seen_before_web_ack(tmp_path):
     status_file = tmp_path / "status.json"
     before = 1.0
-    status_file.write_text(json.dumps({
-        "event": "set",
-        "command_id": "reload1",
-        "last_reload_command_id": "reload1",
-        "dynamic_objects": 8,
-    }), encoding="utf-8")
+    status_file.write_text(
+        json.dumps(
+            {
+                "event": "set",
+                "command_id": "reload1",
+                "last_reload_command_id": "reload1",
+                "dynamic_objects": 8,
+            }
+        ),
+        encoding="utf-8",
+    )
 
     result = wait_agent_m4l_status(str(status_file), before, "reload1", 0.2, 0.01, "reload")
 
@@ -1986,15 +2223,20 @@ def test_wait_agent_m4l_status_accepts_reload_seen_before_web_ack(tmp_path):
 def test_wait_agent_m4l_status_marks_terminal_webui_exhaustion(tmp_path):
     status_file = tmp_path / "status.json"
     before = 1.0
-    status_file.write_text(json.dumps({
-        "event": "error",
-        "command_id": "reload1",
-        "last_reload_command_id": "reload1",
-        "reason": "webui_read_exhausted",
-        "id": "panel",
-        "attempts": 6,
-        "state": {"web_read_pending": 0, "web_panel_read_exhausted": 1},
-    }), encoding="utf-8")
+    status_file.write_text(
+        json.dumps(
+            {
+                "event": "error",
+                "command_id": "reload1",
+                "last_reload_command_id": "reload1",
+                "reason": "webui_read_exhausted",
+                "id": "panel",
+                "attempts": 6,
+                "state": {"web_read_pending": 0, "web_panel_read_exhausted": 1},
+            }
+        ),
+        encoding="utf-8",
+    )
 
     result = wait_agent_m4l_status(str(status_file), before, "reload1", 0.2, 0.01, "reload")
 
@@ -2008,14 +2250,19 @@ def test_wait_agent_m4l_status_marks_terminal_webui_exhaustion(tmp_path):
 def test_wait_agent_m4l_status_does_not_accept_pending_web_read_as_reload(tmp_path):
     status_file = tmp_path / "status.json"
     before = 1.0
-    status_file.write_text(json.dumps({
-        "event": "webui_read",
-        "command_id": "reload1",
-        "last_reload_command_id": "reload1",
-        "attempt": 2,
-        "message": "read",
-        "state": {"web_read_pending": 1, "web_panel_read_attempts": 2},
-    }), encoding="utf-8")
+    status_file.write_text(
+        json.dumps(
+            {
+                "event": "webui_read",
+                "command_id": "reload1",
+                "last_reload_command_id": "reload1",
+                "attempt": 2,
+                "message": "read",
+                "state": {"web_read_pending": 1, "web_panel_read_attempts": 2},
+            }
+        ),
+        encoding="utf-8",
+    )
 
     result = wait_agent_m4l_status(str(status_file), before, "reload1", 0.01, 0.01, "reload")
 
@@ -2030,15 +2277,20 @@ def test_wait_agent_m4l_status_does_not_accept_pending_web_read_as_reload(tmp_pa
 def test_wait_agent_m4l_status_does_not_accept_binding_set_while_web_pending(tmp_path):
     status_file = tmp_path / "status.json"
     before = 1.0
-    status_file.write_text(json.dumps({
-        "event": "set",
-        "command_id": "reload1",
-        "last_reload_command_id": "reload1",
-        "source": "macro",
-        "target": "amount",
-        "webuis": 1,
-        "state": {"web_read_pending": 2, "web_panel_read_attempts": 2},
-    }), encoding="utf-8")
+    status_file.write_text(
+        json.dumps(
+            {
+                "event": "set",
+                "command_id": "reload1",
+                "last_reload_command_id": "reload1",
+                "source": "macro",
+                "target": "amount",
+                "webuis": 1,
+                "state": {"web_read_pending": 2, "web_panel_read_attempts": 2},
+            }
+        ),
+        encoding="utf-8",
+    )
 
     result = wait_agent_m4l_status(str(status_file), before, "reload1", 0.01, 0.01, "reload")
 
@@ -2051,13 +2303,18 @@ def test_wait_agent_m4l_status_does_not_accept_binding_set_while_web_pending(tmp
 def test_wait_agent_m4l_status_does_not_accept_unloaded_webui_after_reload(tmp_path):
     status_file = tmp_path / "status.json"
     before = 1.0
-    status_file.write_text(json.dumps({
-        "event": "reload",
-        "command_id": "reload1",
-        "last_reload_command_id": "reload1",
-        "webuis": 1,
-        "state": {"web_read_pending": 0, "web_panel_read_attempts": 6},
-    }), encoding="utf-8")
+    status_file.write_text(
+        json.dumps(
+            {
+                "event": "reload",
+                "command_id": "reload1",
+                "last_reload_command_id": "reload1",
+                "webuis": 1,
+                "state": {"web_read_pending": 0, "web_panel_read_attempts": 6},
+            }
+        ),
+        encoding="utf-8",
+    )
 
     result = wait_agent_m4l_status(str(status_file), before, "reload1", 0.01, 0.01, "reload")
 
@@ -2068,30 +2325,35 @@ def test_wait_agent_m4l_status_does_not_accept_unloaded_webui_after_reload(tmp_p
 
 def test_wait_agent_m4l_status_timeout_includes_compact_last_status(tmp_path):
     status_file = tmp_path / "status.json"
-    status_file.write_text(json.dumps({
-        "event": "set",
-        "command_id": "old",
-        "last_reload_command_id": "old_reload",
-        "dynamic_objects": 8,
-        "webuis": 1,
-        "device_width": 900,
-        "device_height": 320,
-        "id": "panel",
-        "reason": "webui_read_exhausted",
-        "attempts": 6,
-        "message": "readfile",
-        "connection_errors_truncated": 3,
-        "connection_errors": [{"from": "a", "to": "b", "reason": "missing"} for _index in range(20)],
-        "state": {
-            "command_wake_source": "float",
-            "command_wake_count": 1,
-            "web_ready": None,
-            "web_error": "x" * 260,
-            "web_history": list(range(20)),
-            "web_payload": {("k%02d" % index): index for index in range(14)},
-            "level_value": 0.5,
-        },
-    }), encoding="utf-8")
+    status_file.write_text(
+        json.dumps(
+            {
+                "event": "set",
+                "command_id": "old",
+                "last_reload_command_id": "old_reload",
+                "dynamic_objects": 8,
+                "webuis": 1,
+                "device_width": 900,
+                "device_height": 320,
+                "id": "panel",
+                "reason": "webui_read_exhausted",
+                "attempts": 6,
+                "message": "readfile",
+                "connection_errors_truncated": 3,
+                "connection_errors": [{"from": "a", "to": "b", "reason": "missing"} for _index in range(20)],
+                "state": {
+                    "command_wake_source": "float",
+                    "command_wake_count": 1,
+                    "web_ready": None,
+                    "web_error": "x" * 260,
+                    "web_history": list(range(20)),
+                    "web_payload": {("k%02d" % index): index for index in range(14)},
+                    "level_value": 0.5,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     stale_time = time.time() - 5
     os.utime(status_file, (stale_time, stale_time))
 
@@ -2127,23 +2389,25 @@ def test_wait_agent_m4l_status_timeout_includes_compact_last_status(tmp_path):
 
 
 def test_compact_agent_m4l_status_preserves_timeout_diagnostics():
-    status = summarize_agent_m4l_status({
-        "timed_out": True,
-        "path": "/tmp/status.json",
-        "expected_command_id": "new",
-        "expected_event": "status",
-        "mismatch": "command_id_mismatch",
-        "timeout_reason": "host_not_woken",
-        "last_status_age_seconds": 8.25,
-        "status_file_updated_after_command": False,
-        "last_status": {
-            "event": "set",
-            "command_id": "old",
-            "dynamic_objects": 76,
-            "state_keys": ["web_read_pending"],
-            "state": {"web_read_pending": 5},
-        },
-    })
+    status = summarize_agent_m4l_status(
+        {
+            "timed_out": True,
+            "path": "/tmp/status.json",
+            "expected_command_id": "new",
+            "expected_event": "status",
+            "mismatch": "command_id_mismatch",
+            "timeout_reason": "host_not_woken",
+            "last_status_age_seconds": 8.25,
+            "status_file_updated_after_command": False,
+            "last_status": {
+                "event": "set",
+                "command_id": "old",
+                "dynamic_objects": 76,
+                "state_keys": ["web_read_pending"],
+                "state": {"web_read_pending": 5},
+            },
+        }
+    )
 
     assert status["timed_out"] is True
     assert status["expected_command_id"] == "new"
@@ -2166,20 +2430,22 @@ def test_agent_m4l_status_timeout_reason_classifies_common_cases():
 
 
 def test_compact_agent_m4l_status_recursively_compacts_raw_last_status():
-    status = summarize_agent_m4l_status({
-        "timed_out": True,
-        "expected_command_id": "new",
-        "last_status": {
-            "event": "set",
-            "command_id": "old",
-            "dynamic_objects": 76,
-            "state": {
-                "web_history": list(range(20)),
-                "web_payload": {("k%02d" % index): index for index in range(14)},
-                "level_value": 0.5,
+    status = summarize_agent_m4l_status(
+        {
+            "timed_out": True,
+            "expected_command_id": "new",
+            "last_status": {
+                "event": "set",
+                "command_id": "old",
+                "dynamic_objects": 76,
+                "state": {
+                    "web_history": list(range(20)),
+                    "web_payload": {("k%02d" % index): index for index in range(14)},
+                    "level_value": 0.5,
+                },
             },
-        },
-    })
+        }
+    )
 
     last_status = status["last_status"]
     assert last_status["command_id"] == "old"
@@ -2218,12 +2484,14 @@ def test_browser_search_tool_forwards_query_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"query": "cowbell", "roots": ["drums"], "limit": 5}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 4,
-        "method": "tools/call",
-        "params": {"name": "live_browser_search", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {"name": "live_browser_search", "arguments": args},
+        }
+    )
     assert bridge.calls == [("browser_search", args)]
     assert response["result"]["structuredContent"]["method"] == "browser_search"
 
@@ -2231,12 +2499,14 @@ def test_browser_search_tool_forwards_query_to_bridge():
 def test_browser_capabilities_tool_forwards_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 40,
-        "method": "tools/call",
-        "params": {"name": "live_browser_capabilities", "arguments": {}},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 40,
+            "method": "tools/call",
+            "params": {"name": "live_browser_capabilities", "arguments": {}},
+        }
+    )
     assert bridge.calls == [("browser_capabilities", {})]
     assert response["result"]["structuredContent"]["method"] == "browser_capabilities"
 
@@ -2245,15 +2515,17 @@ def test_find_similar_sounds_reads_live_database_without_bridge(tmp_path):
     db_path = make_similarity_db(tmp_path)
     bridge = FakeBridge()
     server = make_server(bridge)
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 46,
-        "method": "tools/call",
-        "params": {
-            "name": "find_similar_sounds",
-            "arguments": {"base": "Base Kick", "limit": 2, "db_path": str(db_path)},
-        },
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 46,
+            "method": "tools/call",
+            "params": {
+                "name": "find_similar_sounds",
+                "arguments": {"base": "Base Kick", "limit": 2, "db_path": str(db_path)},
+            },
+        }
+    )
 
     result = response["result"]["structuredContent"]
     assert bridge.calls == []
@@ -2305,6 +2577,7 @@ def test_latest_live_files_db_searches_platform_candidates(tmp_path, monkeypatch
     old_time = 1_700_000_000
     new_time = old_time + 60
     import os
+
     os.utime(old_db, (old_time, old_time))
     os.utime(new_db, (new_time, new_time))
     monkeypatch.setattr(
@@ -2372,12 +2645,14 @@ def test_exec_tool_forwards_code_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"code": "result = {'tracks': len(song.tracks)}", "max_items": 10, "allow_legacy_note_api": True}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 41,
-        "method": "tools/call",
-        "params": {"name": "live_exec", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 41,
+            "method": "tools/call",
+            "params": {"name": "live_exec", "arguments": args},
+        }
+    )
     assert bridge.calls == [("exec", args)]
     assert response["result"]["structuredContent"]["method"] == "exec"
     tools = server.handle({"jsonrpc": "2.0", "id": 42, "method": "tools/list"})["result"]["tools"]
@@ -2407,12 +2682,14 @@ def test_browser_load_tool_forwards_item_ref_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"item": {"id": 123, "uri": "fake:item", "path": "sounds > Bass > Fake.adg"}, "target_track": {"path": "live_set tracks 0"}}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 6,
-        "method": "tools/call",
-        "params": {"name": "live_browser_load", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 6,
+            "method": "tools/call",
+            "params": {"name": "live_browser_load", "arguments": args},
+        }
+    )
     assert bridge.calls == [("browser_load", args)]
     assert response["result"]["structuredContent"]["method"] == "browser_load"
 
@@ -2421,22 +2698,26 @@ def test_browser_preview_tool_forwards_item_ref_to_bridge():
     bridge = FakeBridge()
     server = make_server(bridge)
     args = {"item": {"id": 123}}
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 61,
-        "method": "tools/call",
-        "params": {"name": "live_browser_preview", "arguments": args},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 61,
+            "method": "tools/call",
+            "params": {"name": "live_browser_preview", "arguments": args},
+        }
+    )
     assert bridge.calls == [("browser_preview", args)]
     assert response["result"]["structuredContent"]["method"] == "browser_preview"
 
     stop_args = {"stop": True}
-    server.handle({
-        "jsonrpc": "2.0",
-        "id": 62,
-        "method": "tools/call",
-        "params": {"name": "live_browser_preview", "arguments": stop_args},
-    })
+    server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 62,
+            "method": "tools/call",
+            "params": {"name": "live_browser_preview", "arguments": stop_args},
+        }
+    )
     assert bridge.calls[-1] == ("browser_preview", stop_args)
 
 
@@ -2490,22 +2771,27 @@ def test_live_visual_capture_forwards_region_crop_and_size_args(monkeypatch):
 
     monkeypatch.setattr(server_module, "capture_ableton_window", fake_capture)
     server = make_server(FakeBridge())
-    response = server.handle({
-        "jsonrpc": "2.0",
-        "id": 806,
-        "method": "tools/call",
-        "params": {"name": "live_visual_capture", "arguments": {
-            "output_path": "/tmp/live.png",
-            "title_contains": "vibe",
-            "backend": "auto",
-            "region": "device-detail",
-            "crop": [0, 500, 1200, 300],
-            "crop_relative_to_region": True,
-            "bottom_fraction": 0.3,
-            "max_width": 900,
-            "max_height": 260,
-        }},
-    })
+    response = server.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 806,
+            "method": "tools/call",
+            "params": {
+                "name": "live_visual_capture",
+                "arguments": {
+                    "output_path": "/tmp/live.png",
+                    "title_contains": "vibe",
+                    "backend": "auto",
+                    "region": "device-detail",
+                    "crop": [0, 500, 1200, 300],
+                    "crop_relative_to_region": True,
+                    "bottom_fraction": 0.3,
+                    "max_width": 900,
+                    "max_height": 260,
+                },
+            },
+        }
+    )
 
     assert response["result"]["structuredContent"]["ok"] is True
     assert captured == {
@@ -3178,11 +3464,15 @@ def test_visual_capture_dependency_status_classifies_platform_requirements():
 
 def test_validate_requires_visual_capture_dependencies_for_default_setup(tmp_path, monkeypatch, capsys):
     install_remote_script("Ableton_Live_MCP", tmp_path)
-    monkeypatch.setattr(validate, "visual_capture_dependency_status", lambda: {
-        "ok": False,
-        "missing": ["Pillow"],
-        "next_action": 'Install visual capture dependencies with python -m pip install -e ".[visual]" or ".[dev]".',
-    })
+    monkeypatch.setattr(
+        validate,
+        "visual_capture_dependency_status",
+        lambda: {
+            "ok": False,
+            "missing": ["Pillow"],
+            "next_action": 'Install visual capture dependencies with python -m pip install -e ".[visual]" or ".[dev]".',
+        },
+    )
 
     assert validate_main(["--skip-live", "--target-dir", str(tmp_path)]) == 1
     failed = capsys.readouterr()
@@ -3203,11 +3493,17 @@ def test_validate_rejects_running_stale_remote_script(tmp_path, monkeypatch, cap
         def request(self, method, _params):
             assert method == "batch"
             return [
-                {"ok": True, "result": {"ok": True, "remote_script": {
-                    "bridge_sha256": "0" * 64,
-                    "runtime_version": status["source_runtime_version"],
-                    "runtime_code_sha256": status["source_runtime_code_sha256"],
-                }}},
+                {
+                    "ok": True,
+                    "result": {
+                        "ok": True,
+                        "remote_script": {
+                            "bridge_sha256": "0" * 64,
+                            "runtime_version": status["source_runtime_version"],
+                            "runtime_code_sha256": status["source_runtime_code_sha256"],
+                        },
+                    },
+                },
                 {"ok": True, "result": {"ok": True}},
                 {"ok": True, "result": 12},
             ]
@@ -3259,10 +3555,16 @@ def test_validate_rejects_running_remote_script_without_runtime_code_hash(tmp_pa
         def request(self, method, _params):
             assert method == "batch"
             return [
-                {"ok": True, "result": {"ok": True, "remote_script": {
-                    "bridge_sha256": status["source_bridge_sha256"],
-                    "runtime_version": status["source_runtime_version"],
-                }}},
+                {
+                    "ok": True,
+                    "result": {
+                        "ok": True,
+                        "remote_script": {
+                            "bridge_sha256": status["source_bridge_sha256"],
+                            "runtime_version": status["source_runtime_version"],
+                        },
+                    },
+                },
                 {"ok": True, "result": {"ok": True}},
                 {"ok": True, "result": 12},
             ]
@@ -3286,11 +3588,17 @@ def test_validate_rejects_running_remote_script_code_hash_mismatch(tmp_path, mon
         def request(self, method, _params):
             assert method == "batch"
             return [
-                {"ok": True, "result": {"ok": True, "remote_script": {
-                    "bridge_sha256": status["source_bridge_sha256"],
-                    "runtime_version": status["source_runtime_version"],
-                    "runtime_code_sha256": "0" * 64,
-                }}},
+                {
+                    "ok": True,
+                    "result": {
+                        "ok": True,
+                        "remote_script": {
+                            "bridge_sha256": status["source_bridge_sha256"],
+                            "runtime_version": status["source_runtime_version"],
+                            "runtime_code_sha256": "0" * 64,
+                        },
+                    },
+                },
                 {"ok": True, "result": {"ok": True}},
                 {"ok": True, "result": 12},
             ]
@@ -3314,11 +3622,17 @@ def test_validate_live_checks_are_compact_and_timed(tmp_path, monkeypatch, capsy
             calls.append((method, params))
             assert method == "batch"
             return [
-                {"ok": True, "result": {"ok": True, "remote_script": {
-                    "bridge_sha256": status["source_bridge_sha256"],
-                    "runtime_version": status["source_runtime_version"],
-                    "runtime_code_sha256": status["source_runtime_code_sha256"],
-                }}},
+                {
+                    "ok": True,
+                    "result": {
+                        "ok": True,
+                        "remote_script": {
+                            "bridge_sha256": status["source_bridge_sha256"],
+                            "runtime_version": status["source_runtime_version"],
+                            "runtime_code_sha256": status["source_runtime_code_sha256"],
+                        },
+                    },
+                },
                 {"ok": True, "result": {"ok": True}},
                 {"ok": True, "result": 12},
             ]
@@ -3335,11 +3649,14 @@ def test_validate_live_checks_are_compact_and_timed(tmp_path, monkeypatch, capsy
     assert calls[0][1]["timeout"] == 45.0
     operations = calls[0][1]["operations"]
     assert operations[0] == {"method": "ping", "params": {"timeout": 45.0}}
-    assert operations[1] == {"method": "get", "params": {
-        "ref": {"path": "live_set"},
-        "properties": ["tempo", "signature_numerator", "signature_denominator"],
-        "timeout": 45.0,
-    }}
+    assert operations[1] == {
+        "method": "get",
+        "params": {
+            "ref": {"path": "live_set"},
+            "properties": ["tempo", "signature_numerator", "signature_denominator"],
+            "timeout": 45.0,
+        },
+    }
     assert operations[2]["method"] == "eval"
     assert operations[2]["params"]["timeout"] == 45.0
     assert operations[3]["method"] == "exec"
@@ -3357,11 +3674,17 @@ def test_validate_compares_runtime_code_with_live_compiled_hash(tmp_path, monkey
             assert method == "batch"
             assert params["operations"][3]["method"] == "exec"
             return [
-                {"ok": True, "result": {"ok": True, "remote_script": {
-                    "bridge_sha256": status["source_bridge_sha256"],
-                    "runtime_version": status["source_runtime_version"],
-                    "runtime_code_sha256": live_hash,
-                }}},
+                {
+                    "ok": True,
+                    "result": {
+                        "ok": True,
+                        "remote_script": {
+                            "bridge_sha256": status["source_bridge_sha256"],
+                            "runtime_version": status["source_runtime_version"],
+                            "runtime_code_sha256": live_hash,
+                        },
+                    },
+                },
                 {"ok": True, "result": {"ok": True}},
                 {"ok": True, "result": 12},
                 {"ok": True, "result": {"runtime_code_sha256": live_hash}},
@@ -3385,11 +3708,17 @@ def test_validate_live_checks_can_use_strict_short_timeout(tmp_path, monkeypatch
         def request(self, method, params):
             calls.append((method, params))
             return [
-                {"ok": True, "result": {"ok": True, "remote_script": {
-                    "bridge_sha256": status["source_bridge_sha256"],
-                    "runtime_version": status["source_runtime_version"],
-                    "runtime_code_sha256": status["source_runtime_code_sha256"],
-                }}},
+                {
+                    "ok": True,
+                    "result": {
+                        "ok": True,
+                        "remote_script": {
+                            "bridge_sha256": status["source_bridge_sha256"],
+                            "runtime_version": status["source_runtime_version"],
+                            "runtime_code_sha256": status["source_runtime_code_sha256"],
+                        },
+                    },
+                },
                 {"ok": True, "result": {"ok": True}},
                 {"ok": True, "result": 12},
             ]
@@ -3563,8 +3892,8 @@ def test_dev_extra_includes_visual_capture_dependencies():
 
     assert '"pytest>=8.0"' in dev_block
     assert '"Pillow>=10"' in dev_block
-    assert '"pyobjc-framework-Quartz; platform_system == \'Darwin\'"' in dev_block
-    assert '"windows-capture>=2.0; platform_system == \'Windows\'"' in dev_block
+    assert "\"pyobjc-framework-Quartz; platform_system == 'Darwin'\"" in dev_block
+    assert "\"windows-capture>=2.0; platform_system == 'Windows'\"" in dev_block
 
 
 def test_smoke_suite_runs_expected_bridge_methods():
@@ -3618,14 +3947,16 @@ def test_core_regression_exercises_existing_non_m4l_surfaces(tmp_path):
             if method == "browser_search":
                 return {"results": [{"id": 123, "name": "Limiter", "is_loadable": True}]}
             if method == "set_summary":
-                return {"tracks": [
-                    {"name": "MCP Regression MIDI Clip", "clips": [{"name": "MCP Regression MIDI Clip"}]},
-                    {
-                        "name": "MCP Regression Audio Device Clip",
-                        "devices": [{"name": "Limiter"}],
-                        "arrangement_clips": [{"name": "MCP Regression Audio File"}],
-                    },
-                ]}
+                return {
+                    "tracks": [
+                        {"name": "MCP Regression MIDI Clip", "clips": [{"name": "MCP Regression MIDI Clip"}]},
+                        {
+                            "name": "MCP Regression Audio Device Clip",
+                            "devices": [{"name": "Limiter"}],
+                            "arrangement_clips": [{"name": "MCP Regression Audio File"}],
+                        },
+                    ]
+                }
             return {"ok": True}
 
     def similar(_params):
@@ -3797,11 +4128,13 @@ def test_prompt_audit_runs_expected_bridge_methods(monkeypatch, tmp_path):
             if method == "agent_m4l_cleanup":
                 return {"delete": params.get("delete"), "matched_count": 0, "deleted_count": 0}
             if method == "set_summary":
-                return {"tracks": [
-                    {"index": 0, "name": "Audit Automation", "clips": [{"id": 201, "name": "MCP Prompt Audit Automation"}], "arrangement_clips": []},
-                    {"index": 1, "name": "Audit Existing MIDI", "arrangement_clips": [{"id": 301, "name": "MCP Prompt Audit Existing"}]},
-                    {"arrangement_clips": [{"id": 401, "name": "MCP Prompt Audit Warp"}]},
-                ]}
+                return {
+                    "tracks": [
+                        {"index": 0, "name": "Audit Automation", "clips": [{"id": 201, "name": "MCP Prompt Audit Automation"}], "arrangement_clips": []},
+                        {"index": 1, "name": "Audit Existing MIDI", "arrangement_clips": [{"id": 301, "name": "MCP Prompt Audit Existing"}]},
+                        {"arrangement_clips": [{"id": 401, "name": "MCP Prompt Audit Warp"}]},
+                    ]
+                }
             if method == "get":
                 return {"id": 601, "properties": {"name": "Track Volume", "value": 0.85}}
             if method == "clip_notes":
@@ -3818,7 +4151,23 @@ def test_prompt_audit_runs_expected_bridge_methods(monkeypatch, tmp_path):
     assert output["ok"] is True
     assert output["destructive"] is True
     assert sum(1 for call in audit["calls"] if call["method"] == "local_m4l_preflight") == 3
-    assert {"batch", "exec", "set_summary", "get", "clip_notes", "clip_add_notes", "clip_duplicate_to_arrangement", "clip_update_notes", "clip_envelope", "clip_warp_markers", "track_create_audio_clip", "browser_search", "browser_load", "agent_m4l_device", "agent_m4l_cleanup"} <= set(methods)
+    assert {
+        "batch",
+        "exec",
+        "set_summary",
+        "get",
+        "clip_notes",
+        "clip_add_notes",
+        "clip_duplicate_to_arrangement",
+        "clip_update_notes",
+        "clip_envelope",
+        "clip_warp_markers",
+        "track_create_audio_clip",
+        "browser_search",
+        "browser_load",
+        "agent_m4l_device",
+        "agent_m4l_cleanup",
+    } <= set(methods)
     cleanup_calls = [params for method, params in bridge.calls if method == "agent_m4l_cleanup"]
     assert cleanup_calls == [{"delete": False, "name_prefix": "AgentM4L_", "limit": 32}]
     agent_m4l_calls = [params for method, params in bridge.calls if method == "agent_m4l_device"]
@@ -3877,12 +4226,14 @@ def test_all_forwarding_tool_results_are_json_objects():
     bridge = ListEventsBridge()
     server = make_server(bridge)
     for index, tool in enumerate(server.tools.values()):
-        response = server.handle({
-            "jsonrpc": "2.0",
-            "id": 700 + index,
-            "method": "tools/call",
-            "params": {"name": tool.name, "arguments": {}},
-        })
+        response = server.handle(
+            {
+                "jsonrpc": "2.0",
+                "id": 700 + index,
+                "method": "tools/call",
+                "params": {"name": tool.name, "arguments": {}},
+            }
+        )
         result = response.get("result")
         # Argument validation may legitimately reject empty arguments; only
         # assert on results that were actually produced.

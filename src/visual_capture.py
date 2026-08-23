@@ -97,10 +97,7 @@ def select_max_console_window(title_contains: str | None = None) -> WindowInfo:
         windows = [window for window in windows if needle in window.title.lower()]
     if not windows:
         suffix = " matching %r" % title_contains if title_contains else ""
-        raise RuntimeError(
-            "No Max for Live console window%s is available to capture. Open it in Live "
-            "(a device's Max edit button → the Max Console) so the window exists first." % suffix
-        )
+        raise RuntimeError("No Max for Live console window%s is available to capture. Open it in Live (a device's Max edit button → the Max Console) so the window exists first." % suffix)
     return windows[0]
 
 
@@ -268,14 +265,16 @@ def list_macos_displays() -> list[dict[str, Any]]:
         bounds = CGDisplayBounds(did)
         # screencapture -D uses a 1-based index; main display is 1. We surface
         # the bounds + main flag so the caller can match a window to a display.
-        displays.append({
-            "screencapture_index": offset + 1,
-            "display_id": did,
-            "is_main": did == main_id,
-            "width": int(CGDisplayPixelsWide(did)),
-            "height": int(CGDisplayPixelsHigh(did)),
-            "origin": {"x": int(bounds.origin.x), "y": int(bounds.origin.y)},
-        })
+        displays.append(
+            {
+                "screencapture_index": offset + 1,
+                "display_id": did,
+                "is_main": did == main_id,
+                "width": int(CGDisplayPixelsWide(did)),
+                "height": int(CGDisplayPixelsHigh(did)),
+                "origin": {"x": int(bounds.origin.x), "y": int(bounds.origin.y)},
+            }
+        )
     return displays
 
 
@@ -313,18 +312,20 @@ def list_macos_windows() -> list[WindowInfo]:
         pid = int(raw.get("kCGWindowOwnerPID") or 0) or None
         process_path = macos_process_path(pid) if pid else ""
         bounds = normalize_bounds(raw.get("kCGWindowBounds") or {})
-        windows.append(WindowInfo(
-            platform="Darwin",
-            id=int(raw.get("kCGWindowNumber") or 0),
-            title=title,
-            owner=owner,
-            pid=pid,
-            process_path=process_path,
-            bundle_id=macos_bundle_id(process_path),
-            sharing_state=int(raw.get("kCGWindowSharingState") or 0),
-            onscreen=bool(raw.get("kCGWindowIsOnscreen")) if raw.get("kCGWindowIsOnscreen") is not None else None,
-            bounds=bounds,
-        ))
+        windows.append(
+            WindowInfo(
+                platform="Darwin",
+                id=int(raw.get("kCGWindowNumber") or 0),
+                title=title,
+                owner=owner,
+                pid=pid,
+                process_path=process_path,
+                bundle_id=macos_bundle_id(process_path),
+                sharing_state=int(raw.get("kCGWindowSharingState") or 0),
+                onscreen=bool(raw.get("kCGWindowIsOnscreen")) if raw.get("kCGWindowIsOnscreen") is not None else None,
+                bounds=bounds,
+            )
+        )
     return windows
 
 
@@ -357,10 +358,7 @@ def capture_macos_window(window: WindowInfo, output: Path, backend: str = "auto"
             errors.append("quartz: %s" % exc)
             if backend == "quartz":
                 raise RuntimeError(errors[-1]) from exc
-    raise RuntimeError(
-        "macOS Ableton visual capture failed; screen recording permission may be missing or Live may mark the window non-shareable. "
-        + " | ".join(errors)
-    )
+    raise RuntimeError("macOS Ableton visual capture failed; screen recording permission may be missing or Live may mark the window non-shareable. " + " | ".join(errors))
 
 
 def capture_macos_window_screencapture(window: WindowInfo, output: Path) -> None:
@@ -382,12 +380,6 @@ def capture_macos_window_screencapture(window: WindowInfo, output: Path) -> None
 def capture_macos_window_quartz(window: WindowInfo, output: Path) -> None:
     try:
         from Quartz import (
-            CFURLCreateFromFileSystemRepresentation,
-            CGImageDestinationAddImage,
-            CGImageDestinationCreateWithURL,
-            CGImageDestinationFinalize,
-            CGImageGetHeight,
-            CGImageGetWidth,
             CGWindowListCreateImage,
             CGRectNull,
             kCGWindowImageBoundsIgnoreFraming,
@@ -415,6 +407,7 @@ def write_cgimage_png(image: Any, output: Path) -> None:
         CGImageGetHeight,
         CGImageGetWidth,
     )
+
     width = int(CGImageGetWidth(image) or 0)
     height = int(CGImageGetHeight(image) or 0)
     if width <= 0 or height <= 0:
@@ -462,9 +455,7 @@ def capture_macos_window_sck(window: WindowInfo, output: Path, scale: int = 2) -
             SCStreamConfiguration,
         )
     except ImportError as exc:
-        raise RuntimeError(
-            "ScreenCaptureKit capture requires pyobjc-framework-ScreenCaptureKit (pip install pyobjc-framework-ScreenCaptureKit)"
-        ) from exc
+        raise RuntimeError("ScreenCaptureKit capture requires pyobjc-framework-ScreenCaptureKit (pip install pyobjc-framework-ScreenCaptureKit)") from exc
     if not hasattr(SCScreenshotManager, "captureImageWithFilter_configuration_completionHandler_"):
         raise RuntimeError("SCScreenshotManager.captureImage… requires macOS 14+")
     content = _sck_await(
@@ -477,9 +468,7 @@ def capture_macos_window_sck(window: WindowInfo, output: Path, scale: int = 2) -
             target = candidate
             break
     if target is None:
-        raise RuntimeError(
-            "window id %s is not in ScreenCaptureKit's shareable set (off-screen, minimized, or not shareable)" % window.id
-        )
+        raise RuntimeError("window id %s is not in ScreenCaptureKit's shareable set (off-screen, minimized, or not shareable)" % window.id)
     content_filter = SCContentFilter.alloc().initWithDesktopIndependentWindow_(target)
     config = SCStreamConfiguration.alloc().init()
     frame = target.frame()
@@ -519,20 +508,22 @@ def list_windows_windows() -> list[WindowInfo]:
         rect = wintypes.RECT()
         user32.GetWindowRect(hwnd, ctypes.byref(rect))
         process_path = windows_process_path(int(pid.value))
-        windows.append(WindowInfo(
-            platform="Windows",
-            id=int(hwnd),
-            title=title,
-            owner=executable_stem(process_path),
-            pid=int(pid.value) or None,
-            process_path=process_path,
-            bounds={
-                "x": int(rect.left),
-                "y": int(rect.top),
-                "width": int(rect.right - rect.left),
-                "height": int(rect.bottom - rect.top),
-            },
-        ))
+        windows.append(
+            WindowInfo(
+                platform="Windows",
+                id=int(hwnd),
+                title=title,
+                owner=executable_stem(process_path),
+                pid=int(pid.value) or None,
+                process_path=process_path,
+                bounds={
+                    "x": int(rect.left),
+                    "y": int(rect.top),
+                    "width": int(rect.right - rect.left),
+                    "height": int(rect.bottom - rect.top),
+                },
+            )
+        )
         return True
 
     user32.EnumWindows(callback, 0)
@@ -588,53 +579,29 @@ def capture_windows_window(window: WindowInfo, output: Path, backend: str = "aut
 
 
 def ensure_windows_capture_window_resolvable(window: WindowInfo) -> None:
-    matches = [
-        candidate for candidate in list_platform_windows()
-        if candidate.platform == "Windows" and str(candidate.id) == str(window.id)
-    ]
+    matches = [candidate for candidate in list_platform_windows() if candidate.platform == "Windows" and str(candidate.id) == str(window.id)]
     if not matches:
-        raise RuntimeError(
-            "Refusing Windows capture because the window id %r could not be re-verified"
-            % window.id
-        )
+        raise RuntimeError("Refusing Windows capture because the window id %r could not be re-verified" % window.id)
     if not any(is_ableton_live_window(candidate) or is_max_console_window(candidate) for candidate in matches):
-        raise RuntimeError(
-            "Refusing Windows capture because window id %r is not an Ableton Live / Max Console window"
-            % window.id
-        )
+        raise RuntimeError("Refusing Windows capture because window id %r is not an Ableton Live / Max Console window" % window.id)
 
 
 def ensure_windows_capture_title_unambiguous(window: WindowInfo) -> None:
     title = str(window.title or "")
     if not title.strip():
         raise RuntimeError("Windows Ableton visual capture requires a non-empty Ableton Live window title")
-    matches = [
-        candidate for candidate in list_platform_windows()
-        if candidate.platform == "Windows" and str(candidate.title or "") == title
-    ]
+    matches = [candidate for candidate in list_platform_windows() if candidate.platform == "Windows" and str(candidate.title or "") == title]
     if not matches:
-        raise RuntimeError(
-            "Refusing Windows title-based capture because the Ableton Live window title %r could not be re-verified"
-            % title
-        )
+        raise RuntimeError("Refusing Windows title-based capture because the Ableton Live window title %r could not be re-verified" % title)
     ableton_matches = [candidate for candidate in matches if is_ableton_live_window(candidate)]
     non_ableton_matches = [candidate for candidate in matches if not is_ableton_live_window(candidate)]
     if non_ableton_matches:
-        raise RuntimeError(
-            "Refusing Windows title-based capture because the Ableton Live window title %r is shared by non-Ableton windows"
-            % title
-        )
+        raise RuntimeError("Refusing Windows title-based capture because the Ableton Live window title %r is shared by non-Ableton windows" % title)
     target_matches = [candidate for candidate in ableton_matches if str(candidate.id) == str(window.id)]
     if not target_matches:
-        raise RuntimeError(
-            "Refusing Windows title-based capture because the Ableton Live window id %r could not be re-verified"
-            % window.id
-        )
+        raise RuntimeError("Refusing Windows title-based capture because the Ableton Live window id %r could not be re-verified" % window.id)
     if len(ableton_matches) > 1:
-        raise RuntimeError(
-            "Refusing Windows title-based capture because multiple Ableton Live windows share the title %r"
-            % title
-        )
+        raise RuntimeError("Refusing Windows title-based capture because multiple Ableton Live windows share the title %r" % title)
 
 
 def windows_process_path(pid: int) -> str:
@@ -843,7 +810,7 @@ def image_content_stats(image: Any, threshold: int = 8) -> dict[str, Any]:
     width, height = grayscale.size
     total = max(1, width * height)
     histogram = grayscale.histogram()
-    nonblack = sum(histogram[threshold + 1:])
+    nonblack = sum(histogram[threshold + 1 :])
     mean_luma = sum(index * count for index, count in enumerate(histogram)) / total
     mask = grayscale.point(lambda pixel: 255 if pixel > threshold else 0)
     bbox = mask.getbbox()
@@ -884,7 +851,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-height", type=int, help="Downscale output to this maximum height.")
     parser.add_argument("--list", action="store_true", help="List capturable Ableton Live windows without capturing.")
     parser.add_argument("--max-console", action="store_true", help="Capture the Max Console window (Max for Live runtime log) instead of an Ableton Live window.")
-    parser.add_argument("--display", type=int, help="With --max-console: capture this whole display (1=main) instead of the window. Needed because the Max Console's surface is unreadable via the per-window API.")
+    parser.add_argument(
+        "--display", type=int, help="With --max-console: capture this whole display (1=main) instead of the window. Needed because the Max Console's surface is unreadable via the per-window API."
+    )
     args = parser.parse_args(argv)
     try:
         if args.max_console:

@@ -56,15 +56,20 @@ def _local_m4l_preflight(params: dict[str, Any], name: str) -> dict[str, Any]:
 
 def _scenario_make_edm_song(client: AbletonBridgeClient) -> dict[str, Any]:
     calls = [
-        _call(client, "batch", {
-            "continue_on_error": True,
-            "operations": [
-                {"method": "browser_search", "params": {"query": "Drum Rack", "roots": ["instruments"], "limit": 1, "stop_on_limit": True}},
-                {"method": "browser_search", "params": {"query": "bass", "roots": ["sounds", "instruments"], "limit": 3, "max_depth": 5, "max_visited": 3000}},
-                {"method": "browser_search", "params": {"query": "lead", "roots": ["sounds", "instruments"], "limit": 3, "max_depth": 5, "max_visited": 3000}},
-                {"method": "browser_search", "params": {"query": "limiter", "roots": ["audio_effects"], "limit": 1, "stop_on_limit": True}},
-            ],
-        }, "discover_library_candidates"),
+        _call(
+            client,
+            "batch",
+            {
+                "continue_on_error": True,
+                "operations": [
+                    {"method": "browser_search", "params": {"query": "Drum Rack", "roots": ["instruments"], "limit": 1, "stop_on_limit": True}},
+                    {"method": "browser_search", "params": {"query": "bass", "roots": ["sounds", "instruments"], "limit": 3, "max_depth": 5, "max_visited": 3000}},
+                    {"method": "browser_search", "params": {"query": "lead", "roots": ["sounds", "instruments"], "limit": 3, "max_depth": 5, "max_visited": 3000}},
+                    {"method": "browser_search", "params": {"query": "limiter", "roots": ["audio_effects"], "limit": 1, "stop_on_limit": True}},
+                ],
+            },
+            "discover_library_candidates",
+        ),
         _call(client, "exec", {"code": _EDM_CREATION_CODE, "timeout": 10}, "create_four_track_edm_arrangement"),
     ]
     track_paths = calls[1]["result"].get("track_paths", {}) if isinstance(calls[1]["result"], dict) else {}
@@ -88,15 +93,20 @@ def _scenario_make_edm_song(client: AbletonBridgeClient) -> dict[str, Any]:
 
 def _scenario_library_sample_track(client: AbletonBridgeClient) -> dict[str, Any]:
     calls = [
-        _call(client, "browser_search", {
-            "query": "cowbell",
-            "roots": ["drums", "samples", "user_library"],
-            "limit": 1,
-            "max_depth": 7,
-            "max_visited": 8000,
-            "stop_on_limit": True,
-            "stop_score": 1,
-        }, "find_first_good_cowbell"),
+        _call(
+            client,
+            "browser_search",
+            {
+                "query": "cowbell",
+                "roots": ["drums", "samples", "user_library"],
+                "limit": 1,
+                "max_depth": 7,
+                "max_visited": 8000,
+                "stop_on_limit": True,
+                "stop_score": 1,
+            },
+            "find_first_good_cowbell",
+        ),
         _call(client, "exec", {"code": _CREATE_SAMPLE_TRACK_CODE, "timeout": 5}, "create_sample_target_track"),
     ]
     results = calls[0]["result"].get("results", []) if isinstance(calls[0]["result"], dict) else []
@@ -104,17 +114,31 @@ def _scenario_library_sample_track(client: AbletonBridgeClient) -> dict[str, Any
         return _scenario_result("library_sample_track", "Use an installed cowbell sample", calls, skipped="no cowbell sample found")
     track_path = calls[1]["result"]["track_path"]
     calls.append(_call(client, "browser_load", {"item": {"id": results[0]["id"]}, "target_track": {"path": track_path}}, "load_sample_into_track"))
-    calls.append(_call(client, "clip_add_notes", {
-        "ref": {"path": "%s clip_slots 0" % track_path},
-        "create_clip_length": 4.0,
-        "clip_name": "Audit Cowbell Hook",
-        "notes": [{"pitch": 60, "start_time": start, "duration": 0.1, "velocity": 100} for start in (0.0, 0.75, 1.5, 2.25, 3.0)],
-    }, "add_sample_midi_hook"))
-    calls.append(_call(client, "clip_duplicate_to_arrangement", {
-        "track": {"path": track_path},
-        "clip": {"path": "%s clip_slots 0 clip" % track_path},
-        "destination_time": 16.0,
-    }, "duplicate_sample_hook_to_arrangement"))
+    calls.append(
+        _call(
+            client,
+            "clip_add_notes",
+            {
+                "ref": {"path": "%s clip_slots 0" % track_path},
+                "create_clip_length": 4.0,
+                "clip_name": "Audit Cowbell Hook",
+                "notes": [{"pitch": 60, "start_time": start, "duration": 0.1, "velocity": 100} for start in (0.0, 0.75, 1.5, 2.25, 3.0)],
+            },
+            "add_sample_midi_hook",
+        )
+    )
+    calls.append(
+        _call(
+            client,
+            "clip_duplicate_to_arrangement",
+            {
+                "track": {"path": track_path},
+                "clip": {"path": "%s clip_slots 0 clip" % track_path},
+                "destination_time": 16.0,
+            },
+            "duplicate_sample_hook_to_arrangement",
+        )
+    )
     return _scenario_result("library_sample_track", "Use an installed cowbell sample", calls)
 
 
@@ -123,18 +147,34 @@ def _scenario_existing_project_edit(client: AbletonBridgeClient) -> dict[str, An
         _call(client, "exec", {"code": _EXISTING_EDIT_SETUP_CODE, "timeout": 5}, "create_existing_midi_track"),
     ]
     track_path = calls[0]["result"]["track_path"]
-    calls.append(_call(client, "clip_add_notes", {
-        "ref": {"path": "%s clip_slots 0" % track_path},
-        "create_clip_length": 4.0,
-        "clip_name": "MCP Prompt Audit Existing",
-        "notes": [{"pitch": 60 + index, "start_time": index * 0.5, "duration": 0.25, "velocity": 50 + index * 4} for index in range(8)],
-    }, "seed_existing_midi_session_clip"))
-    calls.append(_call(client, "clip_duplicate_to_arrangement", {
-        "track": {"path": track_path},
-        "clip": {"path": "%s clip_slots 0 clip" % track_path},
-        "destination_time": 32.0,
-    }, "seed_existing_midi_arrangement_clip"))
-    calls.append(_call(client, "set_summary", {"track_query": "Audit Existing MIDI", "track_limit": 1, "clip_slot_limit": 2, "device_limit": 2, "arrangement_clip_limit": 8}, "summarize_existing_project"))
+    calls.append(
+        _call(
+            client,
+            "clip_add_notes",
+            {
+                "ref": {"path": "%s clip_slots 0" % track_path},
+                "create_clip_length": 4.0,
+                "clip_name": "MCP Prompt Audit Existing",
+                "notes": [{"pitch": 60 + index, "start_time": index * 0.5, "duration": 0.25, "velocity": 50 + index * 4} for index in range(8)],
+            },
+            "seed_existing_midi_session_clip",
+        )
+    )
+    calls.append(
+        _call(
+            client,
+            "clip_duplicate_to_arrangement",
+            {
+                "track": {"path": track_path},
+                "clip": {"path": "%s clip_slots 0 clip" % track_path},
+                "destination_time": 32.0,
+            },
+            "seed_existing_midi_arrangement_clip",
+        )
+    )
+    calls.append(
+        _call(client, "set_summary", {"track_query": "Audit Existing MIDI", "track_limit": 1, "clip_slot_limit": 2, "device_limit": 2, "arrangement_clip_limit": 8}, "summarize_existing_project")
+    )
     clip_id = None
     for track in calls[-1]["result"].get("tracks", []):
         for clip in track.get("arrangement_clips") or []:
@@ -153,18 +193,34 @@ def _scenario_clip_automation_edit(client: AbletonBridgeClient) -> dict[str, Any
         _call(client, "exec", {"code": _AUTOMATION_SETUP_CODE, "timeout": 5}, "create_automation_track"),
     ]
     track_path = calls[0]["result"]["track_path"]
-    calls.append(_call(client, "clip_add_notes", {
-        "ref": {"path": "%s clip_slots 0" % track_path},
-        "create_clip_length": 4.0,
-        "clip_name": "MCP Prompt Audit Automation",
-        "notes": [{"pitch": 48, "start_time": start, "duration": 0.25, "velocity": 76} for start in (0.0, 1.0, 2.0, 3.0)],
-    }, "seed_automation_session_clip"))
-    calls.append(_call(client, "clip_duplicate_to_arrangement", {
-        "track": {"path": track_path},
-        "clip": {"path": "%s clip_slots 0 clip" % track_path},
-        "destination_time": 40.0,
-    }, "seed_existing_automation_clip"))
-    calls.append(_call(client, "set_summary", {"track_query": "Audit Automation", "track_limit": 1, "clip_slot_limit": 2, "device_limit": 1, "arrangement_clip_limit": 4}, "summarize_automation_target"))
+    calls.append(
+        _call(
+            client,
+            "clip_add_notes",
+            {
+                "ref": {"path": "%s clip_slots 0" % track_path},
+                "create_clip_length": 4.0,
+                "clip_name": "MCP Prompt Audit Automation",
+                "notes": [{"pitch": 48, "start_time": start, "duration": 0.25, "velocity": 76} for start in (0.0, 1.0, 2.0, 3.0)],
+            },
+            "seed_automation_session_clip",
+        )
+    )
+    calls.append(
+        _call(
+            client,
+            "clip_duplicate_to_arrangement",
+            {
+                "track": {"path": track_path},
+                "clip": {"path": "%s clip_slots 0 clip" % track_path},
+                "destination_time": 40.0,
+            },
+            "seed_existing_automation_clip",
+        )
+    )
+    calls.append(
+        _call(client, "set_summary", {"track_query": "Audit Automation", "track_limit": 1, "clip_slot_limit": 2, "device_limit": 1, "arrangement_clip_limit": 4}, "summarize_automation_target")
+    )
     clip_id = None
     track_index = None
     for track in calls[-1]["result"].get("tracks", []):
@@ -179,18 +235,25 @@ def _scenario_clip_automation_edit(client: AbletonBridgeClient) -> dict[str, Any
     parameter_id = calls[-1]["result"].get("id") if isinstance(calls[-1]["result"], dict) else None
     if clip_id is None or parameter_id is None:
         raise RuntimeError("Prompt audit automation target clip or parameter was not found")
-    calls.append(_call(client, "clip_envelope", {
-        "ref": {"id": clip_id},
-        "parameter": {"id": parameter_id},
-        "create": True,
-        "delete_range": {"start_time": 0.0, "end_time": 4.0},
-        "insert_steps": [
-            {"time": 0.0, "duration": 1.0, "value": 0.85},
-            {"time": 1.0, "duration": 1.0, "value": 0.55},
-        ],
-        "start_time": 0.0,
-        "end_time": 4.0,
-    }, "write_clip_volume_automation"))
+    calls.append(
+        _call(
+            client,
+            "clip_envelope",
+            {
+                "ref": {"id": clip_id},
+                "parameter": {"id": parameter_id},
+                "create": True,
+                "delete_range": {"start_time": 0.0, "end_time": 4.0},
+                "insert_steps": [
+                    {"time": 0.0, "duration": 1.0, "value": 0.85},
+                    {"time": 1.0, "duration": 1.0, "value": 0.55},
+                ],
+                "start_time": 0.0,
+                "end_time": 4.0,
+            },
+            "write_clip_volume_automation",
+        )
+    )
     return _scenario_result("clip_automation_edit", "Edit clip automation in an existing project", calls)
 
 
@@ -199,7 +262,9 @@ def _scenario_audio_warp_edit(client: AbletonBridgeClient) -> dict[str, Any]:
     setup_code = _AUDIO_WARP_SETUP_CODE % str(wav_path)
     calls = [
         _call(client, "exec", {"code": setup_code, "timeout": 5}, "seed_existing_audio_clip"),
-        _call(client, "set_summary", {"track_query": "Audit Existing Audio", "track_limit": 1, "clip_slot_limit": 0, "device_limit": 0, "arrangement_clip_limit": 8}, "summarize_audio_arrangement_clip"),
+        _call(
+            client, "set_summary", {"track_query": "Audit Existing Audio", "track_limit": 1, "clip_slot_limit": 0, "device_limit": 0, "arrangement_clip_limit": 8}, "summarize_audio_arrangement_clip"
+        ),
     ]
     clip_id = None
     for track in calls[1]["result"].get("tracks", []):
@@ -209,12 +274,19 @@ def _scenario_audio_warp_edit(client: AbletonBridgeClient) -> dict[str, Any]:
     if clip_id is None:
         raise RuntimeError("Prompt audit audio clip was not found in set_summary")
     calls.append(_call(client, "clip_warp_markers", {"ref": {"id": clip_id}, "limit": 16}, "inspect_audio_warp_markers"))
-    calls.append(_call(client, "clip_warp_markers", {
-        "ref": {"id": clip_id},
-        "warping": True,
-        "add_markers": [{"sample_time": 1.0, "beat_time": 1.0}],
-        "limit": 16,
-    }, "add_audio_warp_marker"))
+    calls.append(
+        _call(
+            client,
+            "clip_warp_markers",
+            {
+                "ref": {"id": clip_id},
+                "warping": True,
+                "add_markers": [{"sample_time": 1.0, "beat_time": 1.0}],
+                "limit": 16,
+            },
+            "add_audio_warp_marker",
+        )
+    )
     return _scenario_result("audio_warp_edit", "Edit warp markers in an existing audio clip", calls)
 
 
@@ -226,12 +298,19 @@ def _scenario_audio_vocal_import(client: AbletonBridgeClient) -> dict[str, Any]:
     track_path = calls[0]["result"].get("track_path") if isinstance(calls[0]["result"], dict) else None
     if not track_path:
         raise RuntimeError("Prompt audit audio vocal track was not created")
-    calls.append(_call(client, "track_create_audio_clip", {
-        "ref": {"path": track_path},
-        "file_path": str(wav_path),
-        "destination_time": 32.0,
-        "name": "MCP Prompt Audit Audio Vocal",
-    }, "import_audio_vocal_phrase"))
+    calls.append(
+        _call(
+            client,
+            "track_create_audio_clip",
+            {
+                "ref": {"path": track_path},
+                "file_path": str(wav_path),
+                "destination_time": 32.0,
+                "name": "MCP Prompt Audit Audio Vocal",
+            },
+            "import_audio_vocal_phrase",
+        )
+    )
     return _scenario_result("audio_vocal_import", "I want audio vocals", calls)
 
 
@@ -313,20 +392,23 @@ def _creative_audio_effect_patch() -> dict[str, Any]:
             {"id": "level_value", "text": "flonum", "presentation_rect": [308, 46, 72, 22]},
         ],
         "webuis": [
-            _prompt_audit_webui("Prompt Audit Reactive Field", {
-                "id": "reactive_scene",
-                "object": "jbrowser~",
-                "title": "Reactive Field",
-                "presentation_rect": [420, 10, 540, 220],
-                "reuse": True,
-                "html": _WEBUI_THREE_CANVAS_HTML,
-                "css": _WEBUI_CANVAS_CSS,
-                "js": _WEBUI_THREE_REACTIVE_FIELD_JS,
-                "assets": {
-                    "assets/three.module.js": {"content": _THREE_AUDIT_MODULE_JS},
-                    "scene/field.json": "{\"kind\":\"three-reactive-field\",\"version\":1}",
+            _prompt_audit_webui(
+                "Prompt Audit Reactive Field",
+                {
+                    "id": "reactive_scene",
+                    "object": "jbrowser~",
+                    "title": "Reactive Field",
+                    "presentation_rect": [420, 10, 540, 220],
+                    "reuse": True,
+                    "html": _WEBUI_THREE_CANVAS_HTML,
+                    "css": _WEBUI_CANVAS_CSS,
+                    "js": _WEBUI_THREE_REACTIVE_FIELD_JS,
+                    "assets": {
+                        "assets/three.module.js": {"content": _THREE_AUDIT_MODULE_JS},
+                        "scene/field.json": '{"kind":"three-reactive-field","version":1}',
+                    },
                 },
-            })
+            )
         ],
         "ui_bindings": [
             {"source": "drive_ui", "target": "drive_amount", "source_min": 0, "source_max": 127, "target_min": 0.1, "target_max": 1.5},
@@ -361,16 +443,19 @@ def _creative_midi_effect_patch() -> dict[str, Any]:
             {"id": "input_velocity", "text": "number", "patching_rect": [290, 290, 60, 22]},
         ],
         "webui": {
-            **_prompt_audit_webui("Prompt Audit Matrix Sequencer", {
-                "id": "piano_roll",
-                "object": "jbrowser~",
-                "title": "Piano Roll",
-                "presentation_rect": [452, 10, 292, 182],
-                "reuse": True,
-                "html": _WEBUI_CANVAS_HTML,
-                "css": _WEBUI_CANVAS_CSS,
-                "js": _WEBUI_PIANO_ROLL_JS,
-            }),
+            **_prompt_audit_webui(
+                "Prompt Audit Matrix Sequencer",
+                {
+                    "id": "piano_roll",
+                    "object": "jbrowser~",
+                    "title": "Piano Roll",
+                    "presentation_rect": [452, 10, 292, 182],
+                    "reuse": True,
+                    "html": _WEBUI_CANVAS_HTML,
+                    "css": _WEBUI_CANVAS_CSS,
+                    "js": _WEBUI_PIANO_ROLL_JS,
+                },
+            ),
         },
         "ui_bindings": [
             {"source": "transpose_ui", "target": "transpose_value", "source_min": -24, "source_max": 24, "target_min": -24, "target_max": 24},
@@ -411,16 +496,19 @@ def _creative_instrument_patch() -> dict[str, Any]:
             {"id": "out_r", "text": "send~ %s" % buses["right"], "patching_rect": [480, 350, 150, 22]},
         ],
         "webui": {
-            **_prompt_audit_webui("Prompt Audit Piano Synth", {
-                "id": "glass_scene",
-                "object": "jbrowser~",
-                "title": "Glass Scene",
-                "presentation_rect": [648, 10, 232, 210],
-                "reuse": True,
-                "html": _WEBUI_CANVAS_HTML,
-                "css": _WEBUI_CANVAS_CSS,
-                "js": _WEBUI_GLASS_SCENE_JS,
-            }),
+            **_prompt_audit_webui(
+                "Prompt Audit Piano Synth",
+                {
+                    "id": "glass_scene",
+                    "object": "jbrowser~",
+                    "title": "Glass Scene",
+                    "presentation_rect": [648, 10, 232, 210],
+                    "reuse": True,
+                    "html": _WEBUI_CANVAS_HTML,
+                    "css": _WEBUI_CANVAS_CSS,
+                    "js": _WEBUI_GLASS_SCENE_JS,
+                },
+            ),
         },
         "ui_bindings": [
             {"source": "tone_ui", "target": "tone_value", "source_min": 0, "source_max": 127, "target_min": 0, "target_max": 1},
@@ -442,11 +530,7 @@ def _creative_instrument_patch() -> dict[str, Any]:
 
 def _prompt_audit_webui(instance_id: str, source: dict[str, Any]) -> dict[str, Any]:
     rendered = agent_m4l.write_webui("%s_%s" % (instance_id, source["id"]), source)
-    result = {
-        key: source[key]
-        for key in ("id", "object", "presentation_rect", "patching_rect", "reuse", "read_message", "readMessage")
-        if key in source
-    }
+    result = {key: source[key] for key in ("id", "object", "presentation_rect", "patching_rect", "reuse", "read_message", "readMessage") if key in source}
     result.update({key: rendered[key] for key in ("html_path", "css_path", "js_path", "url") if key in rendered})
     assets = rendered.get("assets") or []
     if assets:
@@ -674,7 +758,9 @@ requestAnimationFrame(draw);
 """
 
 
-_WEBUI_REACTIVE_FIELD_JS = _WEBUI_PANEL_PREAMBLE_JS + """
+_WEBUI_REACTIVE_FIELD_JS = (
+    _WEBUI_PANEL_PREAMBLE_JS
+    + """
 let pointer = { x: 0.5, y: 0.5, pressure: 0 };
 function sendGesture(event) {
   const rect = canvas.getBoundingClientRect();
@@ -712,9 +798,12 @@ function draw(time) {
 outlet("web_ready", "reactive_scene");
 requestAnimationFrame(draw);
 """
+)
 
 
-_WEBUI_PIANO_ROLL_JS = _WEBUI_PANEL_PREAMBLE_JS + """
+_WEBUI_PIANO_ROLL_JS = (
+    _WEBUI_PANEL_PREAMBLE_JS
+    + """
 function draw() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   const pitch = Number(state.input_pitch || 60);
@@ -740,9 +829,12 @@ canvas.addEventListener("pointerdown", (event) => {
 outlet("web_ready", "piano_roll");
 requestAnimationFrame(draw);
 """
+)
 
 
-_WEBUI_GLASS_SCENE_JS = _WEBUI_PANEL_PREAMBLE_JS + """
+_WEBUI_GLASS_SCENE_JS = (
+    _WEBUI_PANEL_PREAMBLE_JS
+    + """
 function draw(time) {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   const tone = Number(state.tone_value || 0.5);
@@ -767,18 +859,26 @@ function draw(time) {
 outlet("web_ready", "glass_scene");
 requestAnimationFrame(draw);
 """
+)
 
 
 def _scenario_plugin_discovery(client: AbletonBridgeClient) -> dict[str, Any]:
-    calls = [_call(client, "browser_search", {
-        "query": "",
-        "roots": ["plugins"],
-        "limit": 12,
-        "max_depth": 4,
-        "max_visited": 2500,
-        "include_folders": True,
-        "loadable_only": False,
-    }, "discover_installed_plugins")]
+    calls = [
+        _call(
+            client,
+            "browser_search",
+            {
+                "query": "",
+                "roots": ["plugins"],
+                "limit": 12,
+                "max_depth": 4,
+                "max_visited": 2500,
+                "include_folders": True,
+                "loadable_only": False,
+            },
+            "discover_installed_plugins",
+        )
+    ]
     return _scenario_result("plugin_discovery", "Discover installed third-party plugins", calls)
 
 
@@ -915,7 +1015,7 @@ def main() -> int:
     return code
 
 
-_EDM_CREATION_CODE = r'''
+_EDM_CREATION_CODE = r"""
 song.tempo = 128
 names = ["Audit Drums", "Audit Bass", "Audit Lead", "Audit Hook"]
 patterns = {
@@ -939,48 +1039,48 @@ for name in names:
         track.duplicate_clip_to_arrangement(clip, bar * 4.0)
     created.append({"track": track.name, "path": "live_set tracks %s" % (len(song.tracks) - 1), "notes": len(specs), "arrangement_clips": len(track.arrangement_clips)})
 result = {"tempo": song.tempo, "created": created, "track_paths": dict((item["track"], item["path"]) for item in created), "track_count": len(song.tracks)}
-'''
+"""
 
-_CREATE_SAMPLE_TRACK_CODE = r'''
+_CREATE_SAMPLE_TRACK_CODE = r"""
 song.create_midi_track(len(song.tracks))
 track = song.tracks[-1]
 track.name = "Audit Library Sample"
 song.view.selected_track = track
 result = {"track_path": "live_set tracks %s" % (len(song.tracks) - 1), "track": track.name}
-'''
+"""
 
-_EXISTING_EDIT_SETUP_CODE = r'''
+_EXISTING_EDIT_SETUP_CODE = r"""
 song.create_midi_track(len(song.tracks))
 track = song.tracks[-1]
 track.name = "Audit Existing MIDI"
 song.view.selected_track = track
 result = {"track_path": "live_set tracks %s" % (len(song.tracks) - 1), "track": track.name}
-'''
+"""
 
-_AUTOMATION_SETUP_CODE = r'''
+_AUTOMATION_SETUP_CODE = r"""
 song.create_midi_track(len(song.tracks))
 track = song.tracks[-1]
 track.name = "Audit Automation"
 song.view.selected_track = track
 result = {"track_path": "live_set tracks %s" % (len(song.tracks) - 1), "track": track.name}
-'''
+"""
 
-_AUDIO_WARP_SETUP_CODE = r'''
+_AUDIO_WARP_SETUP_CODE = r"""
 song.create_audio_track(len(song.tracks))
 track = song.tracks[-1]
 track.name = "Audit Existing Audio"
 clip = track.create_audio_clip(r"%s", 48.0)
 clip.name = "MCP Prompt Audit Warp"
 result = {"track": track.name, "clip": clip.name, "warping": getattr(clip, "warping", None)}
-'''
+"""
 
-_AUDIO_VOCAL_TRACK_CODE = r'''
+_AUDIO_VOCAL_TRACK_CODE = r"""
 song.create_audio_track(len(song.tracks))
 track = song.tracks[-1]
 track.name = "Audit Audio Vocal"
 song.view.selected_track = track
 result = {"track_path": "live_set tracks %s" % (len(song.tracks) - 1), "track": track.name}
-'''
+"""
 
 
 if __name__ == "__main__":

@@ -41,11 +41,7 @@ class StdioMcpServer:
         # ones -- instead of only when a strict client connects.
         schema = tool.input_schema
         if not isinstance(schema, dict) or schema.get("type") != "object":
-            raise ValueError(
-                f"Tool {tool.name!r} has an invalid inputSchema: MCP requires a "
-                f'JSON Schema object with "type": "object" (got {schema!r}). '
-                "Build it with schema(...) or loose_schema()."
-            )
+            raise ValueError(f'Tool {tool.name!r} has an invalid inputSchema: MCP requires a JSON Schema object with "type": "object" (got {schema!r}). Build it with schema(...) or loose_schema().')
         self.tools[tool.name] = tool
 
     def serve(self, stdin: TextIO | None = None, stdout: TextIO | None = None) -> None:
@@ -98,10 +94,13 @@ class StdioMcpServer:
                     # .result and never mistaken for a failure. None is just the
                     # void case of this rule -> {"ok": true, "result": null}.
                     result = {"ok": True, "result": result}
-                return self._result(req_id, {
-                    "content": [{"type": "text", "text": json.dumps(result, separators=(",", ":"))}],
-                    "structuredContent": result,
-                })
+                return self._result(
+                    req_id,
+                    {
+                        "content": [{"type": "text", "text": json.dumps(result, separators=(",", ":"))}],
+                        "structuredContent": result,
+                    },
+                )
             raise ValueError(f"Unsupported MCP method: {method}")
         except Exception as exc:  # MCP requires structured errors instead of crashing stdio.
             return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32000, "message": str(exc)}}

@@ -211,12 +211,7 @@ def replace_ptch_chunk(container: bytes, payload: bytes) -> bytes:
     payload_end = payload_start + old_size
     if payload_end > len(container):
         raise ValueError("AMXD template has a truncated ptch chunk payload")
-    return (
-        container[:size_start]
-        + len(payload).to_bytes(4, "little")
-        + payload
-        + container[payload_end:]
-    )
+    return container[:size_start] + len(payload).to_bytes(4, "little") + payload + container[payload_end:]
 
 
 def extract_ptch_chunk(container: bytes) -> bytes:
@@ -237,17 +232,7 @@ def extract_ptch_chunk(container: bytes) -> bytes:
 
 def _minimal_amxd_container(role: str, payload: bytes) -> bytes:
     header = ROLE_PRESETS[role]["header"]
-    return (
-        b"ampf"
-        + (4).to_bytes(4, "little")
-        + header
-        + b"meta"
-        + (4).to_bytes(4, "little")
-        + b"\x00\x00\x00\x00"
-        + b"ptch"
-        + len(payload).to_bytes(4, "little")
-        + payload
-    )
+    return b"ampf" + (4).to_bytes(4, "little") + header + b"meta" + (4).to_bytes(4, "little") + b"\x00\x00\x00\x00" + b"ptch" + len(payload).to_bytes(4, "little") + payload
 
 
 def build_amxd(source: Path, output: Path, role: str | None = None) -> None:
@@ -491,10 +476,7 @@ def build_device(role: str, instance_id: str, title: str | None = None, install:
 def build_pool(role: str, count: int, prefix: str = "slot", install: bool = True) -> list[dict[str, Any]]:
     if count < 1:
         raise ValueError("count must be >= 1")
-    return [
-        build_device(role, "%s_%03d" % (slugify(prefix), index), "%s_%03d" % (slugify(prefix), index), install=install)
-        for index in range(count)
-    ]
+    return [build_device(role, "%s_%03d" % (slugify(prefix), index), "%s_%03d" % (slugify(prefix), index), install=install) for index in range(count)]
 
 
 def agent_m4l_host_targets() -> list[dict[str, Any]]:
@@ -565,10 +547,7 @@ def remove_console_status_sinks(patch: dict[str, Any]) -> bool:
     if not sink_ids:
         return False
     boxes = patcher.get("boxes") or []
-    patcher["boxes"] = [
-        item for item in boxes
-        if str((item.get("box") or {}).get("id") or "") not in sink_ids
-    ]
+    patcher["boxes"] = [item for item in boxes if str((item.get("box") or {}).get("id") or "") not in sink_ids]
     lines = patcher.get("lines") or []
     kept_lines = []
     for item in lines:
@@ -736,12 +715,14 @@ def write_webui_assets(directory: Path, assets: Any) -> list[dict[str, Any]]:
         else:
             data = str(asset).encode("utf-8")
         path.write_bytes(data)
-        rendered.append({
-            "path": str(path),
-            "relative_path": relative,
-            "url": path.resolve().as_uri(),
-            "bytes": len(data),
-        })
+        rendered.append(
+            {
+                "path": str(path),
+                "relative_path": relative,
+                "url": path.resolve().as_uri(),
+                "bytes": len(data),
+            }
+        )
     return rendered
 
 

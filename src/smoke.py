@@ -36,75 +36,142 @@ def run_smoke(client: AbletonBridgeClient | None = None) -> tuple[int, dict[str,
     checks: list[dict[str, Any]] = []
 
     checks.append(_call(client, "ping", "ping", {}))
-    checks.append(_call(client, "song_summary", "get", {
-        "ref": {"path": "live_set"},
-        "properties": ["tempo", "signature_numerator", "signature_denominator", "current_song_time"],
-        "children": {"tracks": 8, "scenes": 8, "return_tracks": 4},
-    }))
-    checks.append(_call(client, "track_children_limit", "children", {
-        "ref": {"path": "live_set"},
-        "child": "tracks",
-        "limit": 3,
-    }))
-    checks.append(_call(client, "full_object_eval", "eval", {
-        "expr": "sorted([name for name in dir(song) if 'track' in name.lower() or 'scene' in name.lower()])[:40]",
-    }))
-    checks.append(_call(client, "exec_summary", "exec", {
-        "code": "result = {'tracks': len(song.tracks), 'scenes': len(song.scenes), 'tempo': song.tempo}",
-    }))
-    checks.append(_call(client, "batch_roundtrip", "batch", {
-        "operations": [
-            {"method": "get", "params": {"ref": {"path": "live_set"}, "properties": ["tempo"]}},
-            {"method": "children", "params": {"ref": {"path": "live_set"}, "child": "tracks", "limit": 2}},
-            {"method": "eval", "params": {"expr": "app.get_version_string() if hasattr(app, 'get_version_string') else 'unknown'"}},
-            {"method": "exec", "params": {"code": "result = len(song.tracks)"}},
-        ],
-    }))
-    checks.append(_call(client, "agent_m4l_command_file_update", "agent_m4l_device", {
-        "role": "audio_effect",
-        "instance_id": "Smoke M4L Direct",
-        "command": "update",
-        "load": False,
-        "udp": False,
-        "id": "smoke-m4l-update",
-        "patch": {
-            "device_width": 280,
-            "device_height": 130,
-            "objects": [{"id": "probe_value", "text": "flonum", "presentation_rect": [12, 12, 80, 22]}],
-            "connections": [],
-        },
-    }))
+    checks.append(
+        _call(
+            client,
+            "song_summary",
+            "get",
+            {
+                "ref": {"path": "live_set"},
+                "properties": ["tempo", "signature_numerator", "signature_denominator", "current_song_time"],
+                "children": {"tracks": 8, "scenes": 8, "return_tracks": 4},
+            },
+        )
+    )
+    checks.append(
+        _call(
+            client,
+            "track_children_limit",
+            "children",
+            {
+                "ref": {"path": "live_set"},
+                "child": "tracks",
+                "limit": 3,
+            },
+        )
+    )
+    checks.append(
+        _call(
+            client,
+            "full_object_eval",
+            "eval",
+            {
+                "expr": "sorted([name for name in dir(song) if 'track' in name.lower() or 'scene' in name.lower()])[:40]",
+            },
+        )
+    )
+    checks.append(
+        _call(
+            client,
+            "exec_summary",
+            "exec",
+            {
+                "code": "result = {'tracks': len(song.tracks), 'scenes': len(song.scenes), 'tempo': song.tempo}",
+            },
+        )
+    )
+    checks.append(
+        _call(
+            client,
+            "batch_roundtrip",
+            "batch",
+            {
+                "operations": [
+                    {"method": "get", "params": {"ref": {"path": "live_set"}, "properties": ["tempo"]}},
+                    {"method": "children", "params": {"ref": {"path": "live_set"}, "child": "tracks", "limit": 2}},
+                    {"method": "eval", "params": {"expr": "app.get_version_string() if hasattr(app, 'get_version_string') else 'unknown'"}},
+                    {"method": "exec", "params": {"code": "result = len(song.tracks)"}},
+                ],
+            },
+        )
+    )
+    checks.append(
+        _call(
+            client,
+            "agent_m4l_command_file_update",
+            "agent_m4l_device",
+            {
+                "role": "audio_effect",
+                "instance_id": "Smoke M4L Direct",
+                "command": "update",
+                "load": False,
+                "udp": False,
+                "id": "smoke-m4l-update",
+                "patch": {
+                    "device_width": 280,
+                    "device_height": 130,
+                    "objects": [{"id": "probe_value", "text": "flonum", "presentation_rect": [12, 12, 80, 22]}],
+                    "connections": [],
+                },
+            },
+        )
+    )
     checks.append(_call(client, "browser_roots", "browser_roots", {}))
-    checks.append(_call(client, "browser_instrument_search", "browser_search", {
-        "query": "drum",
-        "roots": ["instruments", "drums"],
-        "limit": 5,
-        "max_depth": 4,
-    }))
-    checks.append(_call(client, "browser_plugin_search", "browser_search", {
-        "query": "",
-        "roots": ["plugins"],
-        "limit": 5,
-        "max_depth": 4,
-        "include_folders": True,
-        "loadable_only": False,
-    }))
-    checks.append(_call(client, "observe_add", "observe", {
-        "ref": {"path": "live_set"},
-        "property": "tempo",
-        "enabled": True,
-    }))
-    checks.append(_call(client, "observe_remove", "observe", {
-        "ref": {"path": "live_set"},
-        "property": "tempo",
-        "enabled": False,
-    }))
+    checks.append(
+        _call(
+            client,
+            "browser_instrument_search",
+            "browser_search",
+            {
+                "query": "drum",
+                "roots": ["instruments", "drums"],
+                "limit": 5,
+                "max_depth": 4,
+            },
+        )
+    )
+    checks.append(
+        _call(
+            client,
+            "browser_plugin_search",
+            "browser_search",
+            {
+                "query": "",
+                "roots": ["plugins"],
+                "limit": 5,
+                "max_depth": 4,
+                "include_folders": True,
+                "loadable_only": False,
+            },
+        )
+    )
+    checks.append(
+        _call(
+            client,
+            "observe_add",
+            "observe",
+            {
+                "ref": {"path": "live_set"},
+                "property": "tempo",
+                "enabled": True,
+            },
+        )
+    )
+    checks.append(
+        _call(
+            client,
+            "observe_remove",
+            "observe",
+            {
+                "ref": {"path": "live_set"},
+                "property": "tempo",
+                "enabled": False,
+            },
+        )
+    )
     checks.append(_call(client, "events_drain", "events", {"limit": 10}))
 
-    hard_failures = [
-        check for check in checks
-        if not check["ok"] and check["name"] not in {"browser_plugin_search"}
-    ]
+    hard_failures = [check for check in checks if not check["ok"] and check["name"] not in {"browser_plugin_search"}]
     output = {
         "ok": not hard_failures,
         "checks": checks,
@@ -145,62 +212,91 @@ def run_core_regression(
             {"pitch": 67, "start_time": 1.0, "duration": 0.45, "velocity": 100},
             {"pitch": 72, "start_time": 1.5, "duration": 0.45, "velocity": 88},
         ]
-        call("add_midi_clip_notes", "clip_add_notes", {
-            "ref": {"path": setup["midi_path"] + " clip_slots 0"},
-            "create_clip_length": 4.0,
-            "clip_name": prefix + "MIDI Clip",
-            "notes": notes,
-            "timeout": 15,
-        })
-        readback = call("read_back_midi_clip_notes", "clip_notes", {
-            "ref": {"path": setup["midi_path"] + " clip_slots 0 clip"},
-            "limit": 16,
-            "timeout": 15,
-        })
+        call(
+            "add_midi_clip_notes",
+            "clip_add_notes",
+            {
+                "ref": {"path": setup["midi_path"] + " clip_slots 0"},
+                "create_clip_length": 4.0,
+                "clip_name": prefix + "MIDI Clip",
+                "notes": notes,
+                "timeout": 15,
+            },
+        )
+        readback = call(
+            "read_back_midi_clip_notes",
+            "clip_notes",
+            {
+                "ref": {"path": setup["midi_path"] + " clip_slots 0 clip"},
+                "limit": 16,
+                "timeout": 15,
+            },
+        )
         if len(readback.get("notes", [])) < len(notes):
             raise RuntimeError("MIDI note readback returned too few notes")
 
-        search = call("search_library_audio_device", "browser_search", {
-            "query": "Limiter",
-            "roots": ["audio_effects"],
-            "limit": 8,
-            "max_depth": 5,
-            "max_visited": 8000,
-            "loadable_only": True,
-            "stop_on_limit": True,
-            "timeout": 20,
-        })
+        search = call(
+            "search_library_audio_device",
+            "browser_search",
+            {
+                "query": "Limiter",
+                "roots": ["audio_effects"],
+                "limit": 8,
+                "max_depth": 5,
+                "max_visited": 8000,
+                "loadable_only": True,
+                "stop_on_limit": True,
+                "timeout": 20,
+            },
+        )
         limiter = _pick_browser_result(search, "Limiter")
-        call("load_library_device_to_audio_track", "browser_load", {
-            "item": {"id": limiter["id"]},
-            "target_track": {"path": setup["audio_path"]},
-            "timeout": 20,
-        })
+        call(
+            "load_library_device_to_audio_track",
+            "browser_load",
+            {
+                "item": {"id": limiter["id"]},
+                "target_track": {"path": setup["audio_path"]},
+                "timeout": 20,
+            },
+        )
 
         wav_path = audio_file or _write_regression_wav()
-        call("create_audio_clip_from_file", "track_create_audio_clip", {
-            "ref": {"path": setup["audio_path"]},
-            "file_path": str(wav_path),
-            "destination_time": 0.0,
-            "name": prefix + "Audio File",
-            "timeout": 20,
-        })
-        summary = call("verify_regression_track_summary", "set_summary", {
-            "track_query": prefix,
-            "track_limit": 4,
-            "clip_slot_limit": 2,
-            "device_limit": 8,
-            "arrangement_clip_limit": 8,
-            "timeout": 15,
-        })
+        call(
+            "create_audio_clip_from_file",
+            "track_create_audio_clip",
+            {
+                "ref": {"path": setup["audio_path"]},
+                "file_path": str(wav_path),
+                "destination_time": 0.0,
+                "name": prefix + "Audio File",
+                "timeout": 20,
+            },
+        )
+        summary = call(
+            "verify_regression_track_summary",
+            "set_summary",
+            {
+                "track_query": prefix,
+                "track_limit": 4,
+                "clip_slot_limit": 2,
+                "device_limit": 8,
+                "arrangement_clip_limit": 8,
+                "timeout": 15,
+            },
+        )
         _verify_core_regression_summary(summary, prefix)
         similar = _find_first_similar(similar_finder)
-        checks.append(_ok("find_similar_sounds", {
-            "database": similar["result"].get("database"),
-            "query": similar["query"],
-            "base": (similar["result"].get("base") or {}).get("name"),
-            "result_count": len(similar["result"].get("results", [])),
-        }))
+        checks.append(
+            _ok(
+                "find_similar_sounds",
+                {
+                    "database": similar["result"].get("database"),
+                    "query": similar["query"],
+                    "base": (similar["result"].get("base") or {}).get("name"),
+                    "result_count": len(similar["result"].get("results", [])),
+                },
+            )
+        )
     except Exception as exc:
         checks.append(_fail("core_regression_assertion", exc))
 
@@ -229,6 +325,7 @@ def run_generated_m4l_regression(
     client = client or AbletonBridgeClient()
     if mcp is None:
         from server import make_server
+
         mcp = make_server(client)
     checks: list[dict[str, Any]] = []
     prefix = "MCP Generated M4L "
@@ -266,38 +363,46 @@ def run_generated_m4l_regression(
     try:
         call("ping_current_runtime", "ping", {"timeout": 10})
         setup = call("create_generated_m4l_tracks", "exec", {"code": _generated_m4l_setup_code(prefix), "timeout": 15})
-        instrument = m4l("load_generated_instrument_hybrid_ui", _generated_m4l_device_args(
-            "instrument",
-            "Smoke Hybrid Synth",
-            setup["instrument_path"],
-            _smoke_instrument_patch("Smoke Hybrid Synth"),
-            ["level_meter", "pitch_value", "web_title", "web_smoke_scope_loaded", "web_read_pending"],
-        ))
-        notes = [
-            {"pitch": pitch, "start_time": index * 0.25, "duration": 0.18, "velocity": 104}
-            for index, pitch in enumerate([48, 55, 60, 63, 67, 70, 72, 75, 72, 70, 67, 63, 60, 55, 58, 63])
-        ]
-        clip = call("add_and_launch_generated_instrument_clip", "clip_add_notes", {
-            "ref": {"path": setup["instrument_path"] + " clip_slots 0"},
-            "create_clip_length": 4.0,
-            "replace_existing_clip": True,
-            "clip_name": prefix + "Hybrid Pattern",
-            "loop_start": 0.0,
-            "loop_end": 4.0,
-            "notes": notes,
-            "fire": True,
-            "timeout": 15,
-        })
+        instrument = m4l(
+            "load_generated_instrument_hybrid_ui",
+            _generated_m4l_device_args(
+                "instrument",
+                "Smoke Hybrid Synth",
+                setup["instrument_path"],
+                _smoke_instrument_patch("Smoke Hybrid Synth"),
+                ["level_meter", "pitch_value", "web_title", "web_smoke_scope_loaded", "web_read_pending"],
+            ),
+        )
+        notes = [{"pitch": pitch, "start_time": index * 0.25, "duration": 0.18, "velocity": 104} for index, pitch in enumerate([48, 55, 60, 63, 67, 70, 72, 75, 72, 70, 67, 63, 60, 55, 58, 63])]
+        clip = call(
+            "add_and_launch_generated_instrument_clip",
+            "clip_add_notes",
+            {
+                "ref": {"path": setup["instrument_path"] + " clip_slots 0"},
+                "create_clip_length": 4.0,
+                "replace_existing_clip": True,
+                "clip_name": prefix + "Hybrid Pattern",
+                "loop_start": 0.0,
+                "loop_end": 4.0,
+                "notes": notes,
+                "fire": True,
+                "timeout": 15,
+            },
+        )
         if clip.get("note_api") != "extended":
             raise RuntimeError("generated instrument clip did not use extended note API")
         call("start_transport_for_generated_m4l", "transport", {"action": "play", "timeout": 10})
         if settle_seconds > 0:
             time.sleep(settle_seconds)
-        meter = call("verify_generated_instrument_meter", "get", {
-            "ref": {"path": setup["instrument_path"]},
-            "properties": ["output_meter_level", "playing_slot_index"],
-            "timeout": 10,
-        })
+        meter = call(
+            "verify_generated_instrument_meter",
+            "get",
+            {
+                "ref": {"path": setup["instrument_path"]},
+                "properties": ["output_meter_level", "playing_slot_index"],
+                "timeout": 10,
+            },
+        )
         if float((meter.get("properties") or {}).get("output_meter_level") or 0.0) <= 0.01:
             raise RuntimeError("generated instrument track meter stayed silent")
         inst_status = m4l("poll_generated_instrument_compact_status", _generated_m4l_status_args(instrument, ["level_meter", "pitch_value", "web_title"]))
@@ -308,38 +413,48 @@ def run_generated_m4l_regression(
             reload_result = m4l("web_reload_generated_instrument_ui", _generated_m4l_web_reload_args(instrument, webui))
             if (reload_result.get("status") or {}).get("event") != "webui_reload":
                 raise RuntimeError("generated instrument web_reload did not ack")
-        audio_effect = m4l("load_generated_audio_effect_native_web_ui", _generated_m4l_device_args(
-            "audio_effect",
-            "Smoke Field FX",
-            setup["instrument_path"],
-            _smoke_audio_effect_patch("Smoke Field FX"),
-            ["level_meter", "web_title", "web_fx_panel_loaded", "web_read_pending"],
-        ))
+        audio_effect = m4l(
+            "load_generated_audio_effect_native_web_ui",
+            _generated_m4l_device_args(
+                "audio_effect",
+                "Smoke Field FX",
+                setup["instrument_path"],
+                _smoke_audio_effect_patch("Smoke Field FX"),
+                ["level_meter", "web_title", "web_fx_panel_loaded", "web_read_pending"],
+            ),
+        )
         audio_status = m4l("poll_generated_audio_effect_status", _generated_m4l_status_args(audio_effect, ["level_meter", "web_title"]))
         if float(((audio_status.get("status") or {}).get("state") or {}).get("level_meter") or 0.0) <= 0:
             raise RuntimeError("generated audio effect level telemetry stayed silent")
-        midi_effect = m4l("load_generated_midi_effect_native_ui", _generated_m4l_device_args(
-            "midi_effect",
-            "Smoke MIDI Matrix",
-            setup["midi_path"],
-            _smoke_midi_effect_patch(),
-            ["input_pitch"],
-        ))
-        call("add_and_launch_generated_midi_effect_clip", "clip_add_notes", {
-            "ref": {"path": setup["midi_path"] + " clip_slots 0"},
-            "create_clip_length": 4.0,
-            "replace_existing_clip": True,
-            "clip_name": prefix + "MIDI Matrix Pattern",
-            "loop_start": 0.0,
-            "loop_end": 4.0,
-            "notes": notes[:8],
-            "fire": True,
-            "timeout": 15,
-        })
+        midi_effect = m4l(
+            "load_generated_midi_effect_native_ui",
+            _generated_m4l_device_args(
+                "midi_effect",
+                "Smoke MIDI Matrix",
+                setup["midi_path"],
+                _smoke_midi_effect_patch(),
+                ["input_pitch"],
+            ),
+        )
+        call(
+            "add_and_launch_generated_midi_effect_clip",
+            "clip_add_notes",
+            {
+                "ref": {"path": setup["midi_path"] + " clip_slots 0"},
+                "create_clip_length": 4.0,
+                "replace_existing_clip": True,
+                "clip_name": prefix + "MIDI Matrix Pattern",
+                "loop_start": 0.0,
+                "loop_end": 4.0,
+                "notes": notes[:8],
+                "fire": True,
+                "timeout": 15,
+            },
+        )
         if settle_seconds > 0:
             time.sleep(min(0.75, settle_seconds))
         midi_status = wait_m4l_state("poll_generated_midi_effect_status", midi_effect, ["input_pitch"], "input_pitch", 6.0)
-        if "input_pitch" not in (((midi_status.get("status") or {}).get("state") or {})):
+        if "input_pitch" not in ((midi_status.get("status") or {}).get("state") or {}):
             raise RuntimeError("generated MIDI effect did not report input_pitch telemetry")
     except Exception as exc:
         checks.append(_fail("generated_m4l_assertion", exc))
@@ -401,16 +516,18 @@ def _compact_generated_m4l_check(check: dict[str, Any]) -> dict[str, Any]:
     elif name.startswith("load_generated_") or name.startswith("web_reload_") or name.startswith("poll_generated_"):
         status = result.get("status") or {}
         state = status.get("state") or {}
-        compact.update({
-            "command": result.get("command"),
-            "loaded": result.get("loaded"),
-            "direct": result.get("direct"),
-            "event": status.get("event"),
-            "host_runtime_version": status.get("host_runtime_version"),
-            "device_width": status.get("device_width"),
-            "device_height": status.get("device_height"),
-            "state": {key: state.get(key) for key in sorted(state) if key in {"level_meter", "pitch_value", "input_pitch", "web_title", "web_read_pending"}},
-        })
+        compact.update(
+            {
+                "command": result.get("command"),
+                "loaded": result.get("loaded"),
+                "direct": result.get("direct"),
+                "event": status.get("event"),
+                "host_runtime_version": status.get("host_runtime_version"),
+                "device_width": status.get("device_width"),
+                "device_height": status.get("device_height"),
+                "state": {key: state.get(key) for key in sorted(state) if key in {"level_meter", "pitch_value", "input_pitch", "web_title", "web_read_pending"}},
+            }
+        )
     elif name.startswith("add_and_launch_"):
         compact["added"] = result.get("added")
         compact["note_api"] = result.get("note_api")
@@ -421,12 +538,14 @@ def _compact_generated_m4l_check(check: dict[str, Any]) -> dict[str, Any]:
 
 
 def _mcp_tool_call(mcp: Any, name: str, args: dict[str, Any]) -> dict[str, Any]:
-    response = mcp.handle({
-        "jsonrpc": "2.0",
-        "id": int(time.time() * 1000000) % 1000000000,
-        "method": "tools/call",
-        "params": {"name": name, "arguments": args},
-    })
+    response = mcp.handle(
+        {
+            "jsonrpc": "2.0",
+            "id": int(time.time() * 1000000) % 1000000000,
+            "method": "tools/call",
+            "params": {"name": name, "arguments": args},
+        }
+    )
     if "error" in response:
         raise RuntimeError(json.dumps(response["error"], separators=(",", ":")))
     return response["result"]["structuredContent"]
@@ -475,11 +594,13 @@ def _generated_m4l_web_reload_args(load_result: dict[str, Any], webui: dict[str,
         "build": False,
         "load": False,
         "command": "web_reload",
-        "webuis": [{
-            "id": webui.get("id"),
-            "html_path": webui.get("html_path"),
-            "url": webui.get("url"),
-        }],
+        "webuis": [
+            {
+                "id": webui.get("id"),
+                "html_path": webui.get("html_path"),
+                "url": webui.get("url"),
+            }
+        ],
         "command_file": load_result.get("command_file"),
         "status_file": load_result.get("status_file"),
         "wait_status": True,
@@ -491,7 +612,7 @@ def _generated_m4l_web_reload_args(load_result: dict[str, Any], webui: dict[str,
 
 
 def _generated_m4l_setup_code(prefix: str) -> str:
-    return f'''
+    return f"""
 prefix = {json.dumps(prefix)}
 for index in reversed(range(len(song.tracks))):
     try:
@@ -515,7 +636,7 @@ result = {{
     "instrument_path": "live_set tracks %s" % instrument_index,
     "midi_path": "live_set tracks %s" % midi_index,
 }}
-'''.strip()
+""".strip()
 
 
 def _smoke_webui(panel_id: str, title: str) -> dict[str, Any]:
@@ -525,7 +646,8 @@ def _smoke_webui(panel_id: str, title: str) -> dict[str, Any]:
         "title": title,
         "presentation_rect": [500, 10, 240, 140],
         "reuse": True,
-        "html": "<!doctype html><html><head><meta charset='utf-8'><link rel='stylesheet' href='style.css'><title>%s</title></head><body><canvas id='scene'></canvas><script src='device.js'></script></body></html>" % title,
+        "html": "<!doctype html><html><head><meta charset='utf-8'><link rel='stylesheet' href='style.css'><title>%s</title></head><body><canvas id='scene'></canvas><script src='device.js'></script></body></html>"
+        % title,
         "css": "html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#08090d}canvas{display:block;width:100vw;height:100vh}",
         "js": _smoke_webui_js(title),
     }
@@ -543,6 +665,7 @@ function receive(s){state=s||{};draw()}window.addEventListener('resize',resize);
 
 def _smoke_instrument_patch(instance: str) -> dict[str, Any]:
     from agent_m4l import audio_bus_names
+
     bus = audio_bus_names(instance)
     return {
         "device_width": 760,
@@ -663,7 +786,7 @@ def _smoke_midi_effect_patch() -> dict[str, Any]:
 
 
 def _core_regression_setup_code(prefix: str) -> str:
-    return f'''
+    return f"""
 prefix = {json.dumps(prefix)}
 for index in reversed(range(len(song.tracks))):
     try:
@@ -685,7 +808,7 @@ result = {{
     "midi_path": "live_set tracks %s" % midi_index,
     "audio_path": "live_set tracks %s" % audio_index,
 }}
-'''.strip()
+""".strip()
 
 
 def _pick_browser_result(search: dict[str, Any], preferred_name: str) -> dict[str, Any]:
