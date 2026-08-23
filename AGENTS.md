@@ -309,6 +309,18 @@ When routing Max-object `live.observer value` output into generated bindings, no
 
 Generated hosts also expose a hidden Live parameter used only to try to wake the command-file poller; Live may surface it as `Agent Poll`, `Agent M4L Poll`, or the Max box name `command-trigger`. After writing a command file, the Remote Script may toggle one of those names on the target generated device when a target track is available, but the command is not successful until the status file reports the matching `command_id`.
 
+## Vocal sample prep (`live_prep_vocal_sample`)
+
+Trimming (`pydub`) has no external dependency beyond the `vocals`/`dev`
+extra. Transcription (`faster-whisper`, only imported if `transcribe` isn't
+explicitly `False`) downloads its model from Hugging Face Hub on first use
+per `model` size (default `"base"`) and caches it locally (`~/.cache/huggingface`
+by default, or wherever `HF_HOME`/`HUGGINGFACE_HUB_CACHE` point) — this
+means the *first* call with a given model size needs network access and
+takes noticeably longer than subsequent calls. For an offline environment,
+pre-fetch the model once with network access before relying on this tool,
+or pass `"transcribe": false` to only trim.
+
 ## Composing a chord track for an existing melody
 
 No dedicated tool for this — it doesn't need one. Read the melody with
