@@ -24,6 +24,7 @@ from agent_m4l import (
 from mcp_stdio import StdioMcpServer, Tool
 from similar_sounds import find_similar_sounds
 from visual_capture import capture_ableton_window, capture_max_console_window
+from vocal_prep import prep_vocal_sample
 
 
 __version__ = "0.1.1"
@@ -795,6 +796,24 @@ def make_server(client: AbletonBridgeClient | None = None) -> StdioMcpServer:
                 }
             ),
             find_similar_sounds,
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_prep_vocal_sample",
+            "Trim silence from a vocal sample and transcribe it.",
+            schema(
+                {
+                    "file_path": {"type": "string"},
+                    "output_dir": {"type": "string"},
+                    "trim": {"type": "boolean"},
+                    "silence_thresh_db": {"type": "number"},
+                    "transcribe": {"type": "boolean"},
+                    "model": {"type": "string", "description": "faster-whisper model size, e.g. tiny/base/small."},
+                },
+                ["file_path"],
+            ),
+            prep_vocal_sample,
         )
     )
     server.add_tool(
