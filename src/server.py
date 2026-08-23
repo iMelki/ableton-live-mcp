@@ -34,7 +34,7 @@ from similar_sounds import find_similar_sounds
 from visual_capture import capture_ableton_window, capture_max_console_window
 from vocal_prep import prep_vocal_sample
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 
 ABLETON_AGENT_GUIDE = "General Live object-model bridge; examples are heuristics, not limits."

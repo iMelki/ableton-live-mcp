@@ -4,14 +4,18 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project does not
 yet follow semantic version tags.
 
-## [Unreleased]
+## [0.1.2] - 2026-08-23
 
 ### Added
-- CI workflow (`.github/workflows/ci.yml`): runs `pytest`, `ruff check`, and
-  `ruff format --check` on every push/PR. Nothing ran the test suite
-  automatically before this.
-- `ruff` lint config (pyflakes rules) and a repo-wide `ruff format` pass —
-  the codebase is now clean against both.
+- CI workflow (`.github/workflows/ci.yml`): `pytest` on Linux (Python 3.10,
+  3.12) and macOS, plus `ruff check` and `ruff format --check`, on every
+  push/PR. Nothing ran the test suite automatically before this.
+- `ruff` lint config (pyflakes + import-sorting rules) and a repo-wide
+  `ruff format` pass — the codebase is now clean against both. Pyupgrade
+  (`UP`) rules were evaluated and deliberately not enabled: most of its
+  findings want to rewrite the codebase's consistent, intentional
+  `%`-style string formatting to f-strings, a large unrelated stylistic
+  diff rather than a mechanical fix.
 - `live_prep_vocal_sample` MCP tool (`src/vocal_prep.py`): trims leading/
   trailing silence (`pydub`) and transcribes (`faster-whisper`, optional
   `vocals` extra) a vocal sample file. Implements one of README's "Ideas"
@@ -24,7 +28,10 @@ yet follow semantic version tags.
   (AST-based) check that every strict-schema tool declares every `params`
   key its bridge RPC handler actually reads (complementary to
   `mcp_stdio.py`'s existing registration-time schema-shape guard).
-- `CONTRIBUTING.md`.
+- `CONTRIBUTING.md`, and dev-workflow notes in `AGENTS.md` (schema vs.
+  `loose_schema()` guidance, the `tools/list` compactness budget, the
+  known Linux-only `test_validate_*` gap and its macOS CI coverage,
+  `faster-whisper` model download/caching behavior, mypy survey findings).
 
 ### Fixed
 - Two dead unused imports (`ruff check`): a redundant `Quartz` re-import in
