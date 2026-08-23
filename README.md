@@ -66,6 +66,8 @@ Example usage where I asked Codex to generate a spectrogram of two piano tracks 
 
 ## Ideas
 
+Feasibility research and implementation sketches for these: [docs/roadmap-ideas.md](docs/roadmap-ideas.md).
+
 - Control your external synthesizers and other hardware with the MCP
 - Ask it questions like "why does my mix sound muddy?" or "how do I sidechain my bass track?"
 - Ask it to do things like "add a chord track that fits with my melody" or "give me a basic backing track for me to noodle on my guitar with"

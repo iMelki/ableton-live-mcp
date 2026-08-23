@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install -e ".[dev]"
+      # 16 tests under test_validate_* exercise `ableton-live-mcp-validate`'s M4L-host
+      # check, which is gated to macOS/Windows (agent_m4l_host_status / ableton_paths)
+      # and fails on Linux runners independent of any code change — pre-existing, not
+      # introduced by this workflow. Deselected here rather than silently left to fail;
+      # not something this change attempts to fix.
+      - name: Run tests (Linux-incompatible validate checks deselected)
+        run: |
+          DESELECT=(
+            tests/test_mcp_server.py::test_validate_can_check_remote_script_without_live
+            tests/test_mcp_server.py::test_validate_checks_agent_m4l_host_companion_js
+            tests/test_mcp_server.py::test_validate_rejects_running_stale_remote_script
+            tests/test_mcp_server.py::test_validate_rejects_running_remote_script_without_runtime_version
+            tests/test_mcp_server.py::test_validate_rejects_running_remote_script_without_runtime_code_hash
+            tests/test_mcp_server.py::test_validate_rejects_running_remote_script_code_hash_mismatch
+            tests/test_mcp_server.py::test_validate_live_checks_are_compact_and_timed
+            tests/test_mcp_server.py::test_validate_compares_runtime_code_with_live_compiled_hash
+            tests/test_mcp_server.py::test_validate_live_checks_can_use_strict_short_timeout
+            tests/test_mcp_server.py::test_validate_live_failure_prints_structured_diagnostics
+            tests/test_mcp_server.py::test_validate_classifies_bridge_status_timeout_as_unresponsive
+            tests/test_mcp_server.py::test_validate_classifies_live_main_thread_timeout
+            tests/test_mcp_server.py::test_validate_classifies_main_thread_timeout_with_status_timeout_as_process_unresponsive
+            tests/test_mcp_server.py::test_validate_classifies_live_main_thread_hung_when_socket_thread_responds
+            tests/test_mcp_server.py::test_validate_classifies_client_stall_cooldown_as_live_hung_when_status_responds
+            tests/test_mcp_server.py::test_validate_classifies_bridge_not_listening
+          )
+          ARGS=()
+          for t in "${DESELECT[@]}"; do ARGS+=(--deselect "$t"); done
+          python -m pytest "${ARGS[@]}"
+
+  # The 16 tests deselected above are macOS/Windows-only (see comment above); run
+  # the full, undeselected suite on a real macOS runner so they're still covered.
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: "check ."
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check ."

@@ -8,7 +8,6 @@ import struct
 from pathlib import Path
 from typing import Any
 
-
 DB_DIR_ENV_VARS = ("ABLETON_LIVE_DATABASE_DIR", "ABLETON_LIVE_DB_DIR")
 
 
@@ -66,9 +65,7 @@ def latest_live_files_db() -> Path:
         reverse=True,
     )
     if not candidates:
-        raise FileNotFoundError(
-            "No Live-files database found in %s" % ", ".join(str(path) for path in db_dirs)
-        )
+        raise FileNotFoundError("No Live-files database found in %s" % ", ".join(str(path) for path in db_dirs))
     return candidates[0]
 
 

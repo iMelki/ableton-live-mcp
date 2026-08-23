@@ -162,7 +162,7 @@ def _check_running_remote_script(results: dict) -> tuple[bool, str]:
     expected_version = remote_script.get("source_runtime_version")
     expected_code = remote_script.get("live_compiled_runtime_code_sha256") or remote_script.get("source_runtime_code_sha256")
     expected = remote_script.get("source_bridge_sha256")
-    runtime = ((results.get("ping") or {}).get("remote_script") or {})
+    runtime = (results.get("ping") or {}).get("remote_script") or {}
     actual_version = runtime.get("runtime_version")
     actual_code = runtime.get("runtime_code_sha256")
     actual = runtime.get("bridge_sha256")
@@ -224,13 +224,15 @@ def mcp_tool_schema_status() -> dict:
             if actual_enum != expected_enum:
                 enum_mismatches[prop] = {"expected": expected_enum, "actual": actual_enum}
         ok = not missing_properties and not missing_required and not enum_mismatches
-        checks.append({
-            "tool": name,
-            "ok": ok,
-            "missing_properties": missing_properties,
-            "missing_required": missing_required,
-            "enum_mismatches": enum_mismatches,
-        })
+        checks.append(
+            {
+                "tool": name,
+                "ok": ok,
+                "missing_properties": missing_properties,
+                "missing_required": missing_required,
+                "enum_mismatches": enum_mismatches,
+            }
+        )
     failed = [item for item in checks if not item.get("ok")]
     result = {
         "ok": not failed,

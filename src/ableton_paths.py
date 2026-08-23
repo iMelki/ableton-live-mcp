@@ -5,7 +5,6 @@ import platform
 from pathlib import Path
 from typing import Iterable
 
-
 USER_LIBRARY_ENV_VARS = ("ABLETON_USER_LIBRARY", "ABLETON_LIVE_USER_LIBRARY")
 TEMPLATE_DIR_ENV_VARS = ("ABLETON_MAX_DEVICE_TEMPLATE_DIR", "ABLETON_M4L_TEMPLATE_DIR")
 LIVE_PATH_ENV_VARS = ("ABLETON_LIVE_APP", "ABLETON_LIVE_PATH", "ABLETON_LIVE_INSTALL_DIR")
@@ -86,13 +85,15 @@ def _template_dirs_from_live_path(path: Path) -> list[Path]:
 
     candidates: list[Path] = []
     for base in bases:
-        candidates.extend([
-            base,
-            base / "Contents" / "App-Resources" / "Misc" / "Max Devices",
-            base / "App-Resources" / "Misc" / "Max Devices",
-            base / "Resources" / "Misc" / "Max Devices",
-            base / "Misc" / "Max Devices",
-        ])
+        candidates.extend(
+            [
+                base,
+                base / "Contents" / "App-Resources" / "Misc" / "Max Devices",
+                base / "App-Resources" / "Misc" / "Max Devices",
+                base / "Resources" / "Misc" / "Max Devices",
+                base / "Misc" / "Max Devices",
+            ]
+        )
     return _dedupe(candidates)
 
 

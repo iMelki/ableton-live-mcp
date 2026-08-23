@@ -1,18 +1,38 @@
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import socket
 import time
 from pathlib import Path
 from typing import Any
 
+from agent_m4l import (
+    build_device,
+    infer_device_bounds,
+    normalize_role,
+    slugify,
+    write_webui,
+    write_webui_asset_files,
+    write_webui_assets,
+)
+from agent_m4l import (
+    command_file as agent_m4l_command_file,
+)
+from agent_m4l import (
+    device_name as agent_m4l_device_name,
+)
+from agent_m4l import (
+    status_file as agent_m4l_status_file,
+)
+from agent_m4l import (
+    udp_port as agent_m4l_udp_port,
+)
 from bridge import AbletonBridgeClient, BridgeConfig
-from agent_m4l import build_device, command_file as agent_m4l_command_file, device_name as agent_m4l_device_name, infer_device_bounds, normalize_role, slugify, status_file as agent_m4l_status_file, udp_port as agent_m4l_udp_port, write_webui, write_webui_asset_files, write_webui_assets
 from mcp_stdio import StdioMcpServer, Tool
 from similar_sounds import find_similar_sounds
 from visual_capture import capture_ableton_window, capture_max_console_window
-
+from vocal_prep import prep_vocal_sample
 
 __version__ = "0.1.1"
 
@@ -24,8 +44,18 @@ AGENT_M4L_WEB_STATUS_TIMEOUT = 9.0
 AGENT_M4L_LIVE_DEVICE_WIDTH_ADVISORY = 960
 AGENT_M4L_LIVE_DEVICE_HEIGHT_ADVISORY = 180
 AGENT_M4L_RECOVERY_PATCH_KEYS = (
-    "objects", "connections", "ui_bindings", "bindings", "webui", "webuis",
-    "device_width", "devicewidth", "width", "device_height", "deviceheight", "height",
+    "objects",
+    "connections",
+    "ui_bindings",
+    "bindings",
+    "webui",
+    "webuis",
+    "device_width",
+    "devicewidth",
+    "width",
+    "device_height",
+    "deviceheight",
+    "height",
 )
 AGENT_M4L_STATIC_OBJECTS_BY_ROLE = {
     "audio_effect": {"plugin", "plugout", "audio-in-l", "audio-in-r", "audio-out-l", "audio-out-r"},
@@ -44,9 +74,7 @@ ABLETON_MCP_INSTRUCTIONS = (
     "M4L: freeform UI; wait_status/compact_result+cmd. host_runtime_version. No default piano/knob UI/templates. web_reload UI-only/no recovery overwrite, throttled fallback wakes, load:false/set/status skip build, direct status polls, host_not_woken=no ack, midiin+midiparse, origin rect/openrect, bounds, ui_bindings/no loops, agent-settable UI, telemetry report:false, ack guard/state throttles, webkbd DOM->message/no OS keys, web assets/source_path, status_state_keys/_only diag, audio buses, jweb/jbrowser aliases. Sizing: device_width/openrect tight to authored UI/webview; keep hidden patching_rect inside width; shrink via new host/fresh reload + nonblank capture. FFT/spectrum=real telemetry/no fake; audio-reactive web: prove signal+visual delta. Smooth clicks. DSP: tap A/B refs; path->out; bands/crest/pitch. Hang: unload web/restart/validate. "
     "full Live object model remains available."
 )
-AGENT_M4L_TOOL_DESCRIPTION = (
-    "arbitrary native UI, jweb/jbrowser web UI; wait_status compact_status compact_result status_state_keys web diag."
-)
+AGENT_M4L_TOOL_DESCRIPTION = "arbitrary native UI, jweb/jbrowser web UI; wait_status compact_status compact_result status_state_keys web diag."
 AGENT_M4L_CLEANUP_DESCRIPTION = "Dry-run/delete AgentM4L; ask before delete."
 AGENT_AUDIO_TAP_DESCRIPTION = "AgentAudioTap: command open/start/stop/status; start with path; UDP optional."
 AGENT_AUDIO_TAP_SETUP_DESCRIPTION = "Load AgentAudioTap; solo target track; verify."
@@ -108,197 +136,420 @@ def make_server(client: AbletonBridgeClient | None = None) -> StdioMcpServer:
     guarded_response_controls = dict(response_controls)
     guarded_response_controls["expected_set_signature"] = {"type": "string"}
     strict_timeout_control = {"strict_timeout": {"type": "boolean"}}
-    server.add_tool(Tool("live_get", "Resolve object; read selected properties/children.", schema({
-        "ref": ref,
-        "properties": {"type": "array", "items": {"type": "string"}},
-        "children": {"oneOf": [
-            {"type": "array", "items": {"type": "string"}},
-            {"type": "object", "additionalProperties": {"type": "integer"}},
-        ]},
-        "child_limit": {"type": "integer", "minimum": 0},
-        **response_controls,
-    }, ["ref"]), forward("get")))
-    server.add_tool(Tool("live_set_summary", "Compact set summary.", schema({
-        "track_limit": {"type": "integer"},
-        "clip_slot_limit": {"type": "integer"},
-        "device_limit": {"type": "integer"},
-        "arrangement_clip_limit": {"type": "integer"},
-        "track_query": {"type": "string"},
-        "include_return_tracks": {"type": "boolean"},
-        "include_master_track": {"type": "boolean"},
-        **response_controls,
-    }), forward("set_summary")))
-    server.add_tool(Tool("live_set", "Set a writable Live object property.", schema({
-        "ref": ref,
-        "property": {"type": "string"},
-        "value": {},
-        **mutation_controls,
-    }, ["ref", "property", "value"]), forward("set")))
-    server.add_tool(Tool("live_call", "Call one Live object method.", schema({
-        "ref": ref,
-        "method": {"type": "string"},
-        "args": {"type": "array"},
-        "kwargs": {"type": "object"},
-        **mutation_controls,
-    }, ["ref", "method"]), forward("call")))
-    server.add_tool(Tool("live_children", "List child objects from a collection.", schema({
-        "ref": ref,
-        "child": {"type": "string"},
-        "limit": {"type": "integer", "minimum": 0},
-        **response_controls,
-    }, ["ref", "child"]), forward("children")))
-    server.add_tool(Tool("live_device_parameters", "Compact Device parameter metadata.", schema({
-        "ref": ref,
-        "query": {"type": "string"},
-        "limit": {"type": "integer", "minimum": 0},
-        **response_controls,
-    }, ["ref"]), forward("device_parameters")))
-    server.add_tool(Tool("live_parameter_set", "Set DeviceParameter value.", schema({
-        "ref": ref,
-        "value": {"type": "number"},
-        "coerce": {"type": "boolean"},
-        **mutation_controls,
-    }, ["ref", "value"]), forward("parameter_set")))
-    server.add_tool(Tool("live_clip_notes", "List MIDI notes from a clip compactly.", schema({
-        "ref": ref,
-        "limit": {"type": "integer", "minimum": 0},
-        "start_time": {"type": "number"},
-        "end_time": {"type": "number"},
-        **response_controls,
-    }, ["ref"]), forward("clip_notes")))
-    server.add_tool(Tool("live_clip_update_notes", "Update existing MIDI notes by note_id.", schema({
-        "ref": ref,
-        "updates": {"type": "array", "items": {"type": "object", "properties": {
-            "note_id": {"type": "integer"},
+    server.add_tool(
+        Tool(
+            "live_get",
+            "Resolve object; read selected properties/children.",
+            schema(
+                {
+                    "ref": ref,
+                    "properties": {"type": "array", "items": {"type": "string"}},
+                    "children": {
+                        "oneOf": [
+                            {"type": "array", "items": {"type": "string"}},
+                            {"type": "object", "additionalProperties": {"type": "integer"}},
+                        ]
+                    },
+                    "child_limit": {"type": "integer", "minimum": 0},
+                    **response_controls,
+                },
+                ["ref"],
+            ),
+            forward("get"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_set_summary",
+            "Compact set summary.",
+            schema(
+                {
+                    "track_limit": {"type": "integer"},
+                    "clip_slot_limit": {"type": "integer"},
+                    "device_limit": {"type": "integer"},
+                    "arrangement_clip_limit": {"type": "integer"},
+                    "track_query": {"type": "string"},
+                    "include_return_tracks": {"type": "boolean"},
+                    "include_master_track": {"type": "boolean"},
+                    **response_controls,
+                }
+            ),
+            forward("set_summary"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_set",
+            "Set a writable Live object property.",
+            schema(
+                {
+                    "ref": ref,
+                    "property": {"type": "string"},
+                    "value": {},
+                    **mutation_controls,
+                },
+                ["ref", "property", "value"],
+            ),
+            forward("set"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_call",
+            "Call one Live object method.",
+            schema(
+                {
+                    "ref": ref,
+                    "method": {"type": "string"},
+                    "args": {"type": "array"},
+                    "kwargs": {"type": "object"},
+                    **mutation_controls,
+                },
+                ["ref", "method"],
+            ),
+            forward("call"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_children",
+            "List child objects from a collection.",
+            schema(
+                {
+                    "ref": ref,
+                    "child": {"type": "string"},
+                    "limit": {"type": "integer", "minimum": 0},
+                    **response_controls,
+                },
+                ["ref", "child"],
+            ),
+            forward("children"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_device_parameters",
+            "Compact Device parameter metadata.",
+            schema(
+                {
+                    "ref": ref,
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "minimum": 0},
+                    **response_controls,
+                },
+                ["ref"],
+            ),
+            forward("device_parameters"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_parameter_set",
+            "Set DeviceParameter value.",
+            schema(
+                {
+                    "ref": ref,
+                    "value": {"type": "number"},
+                    "coerce": {"type": "boolean"},
+                    **mutation_controls,
+                },
+                ["ref", "value"],
+            ),
+            forward("parameter_set"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_clip_notes",
+            "List MIDI notes from a clip compactly.",
+            schema(
+                {
+                    "ref": ref,
+                    "limit": {"type": "integer", "minimum": 0},
+                    "start_time": {"type": "number"},
+                    "end_time": {"type": "number"},
+                    **response_controls,
+                },
+                ["ref"],
+            ),
+            forward("clip_notes"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_clip_update_notes",
+            "Update existing MIDI notes by note_id.",
+            schema(
+                {
+                    "ref": ref,
+                    "updates": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "note_id": {"type": "integer"},
+                                "pitch": {"type": "integer"},
+                                "start_time": {"type": "number"},
+                                "duration": {"type": "number"},
+                                "velocity": {"type": "number"},
+                                "mute": {"type": "boolean"},
+                                "probability": {"type": "number"},
+                                "velocity_deviation": {"type": "number"},
+                                "release_velocity": {"type": "number"},
+                            },
+                            "required": ["note_id"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    **mutation_controls,
+                },
+                ["ref", "updates"],
+            ),
+            forward("clip_update_notes"),
+        )
+    )
+    note_spec = {
+        "type": "object",
+        "properties": {
             "pitch": {"type": "integer"},
             "start_time": {"type": "number"},
             "duration": {"type": "number"},
             "velocity": {"type": "number"},
             "mute": {"type": "boolean"},
-            "probability": {"type": "number"},
-            "velocity_deviation": {"type": "number"},
-            "release_velocity": {"type": "number"},
-        }, "required": ["note_id"], "additionalProperties": False}},
-        **mutation_controls,
-    }, ["ref", "updates"]), forward("clip_update_notes")))
-    note_spec = {"type": "object", "properties": {
-        "pitch": {"type": "integer"},
-        "start_time": {"type": "number"},
-        "duration": {"type": "number"},
-        "velocity": {"type": "number"},
-        "mute": {"type": "boolean"},
-    }, "required": ["pitch", "start_time", "duration", "velocity"], "additionalProperties": False}
-    server.add_tool(Tool("live_clip_add_notes", "Add notes; create a MIDI clip.", schema({
-        "ref": ref,
-        "notes": {"type": "array", "items": note_spec},
-        "clear": {"type": "boolean"},
-        "create_clip_length": {"type": "number"},
-        "clip_name": {"type": "string"},
-        "fire": {"type": "boolean"},
-        "replace_existing_clip": {"type": "boolean"},
-        "allow_legacy_note_api": {"type": "boolean"},
-        "clear_range": {"type": "object", "properties": {
-            "from_pitch": {"type": "integer"},
-            "pitch_span": {"type": "integer"},
-            "from_time": {"type": "number"},
-            "time_span": {"type": "number"},
-        }, "required": ["from_pitch", "pitch_span", "from_time", "time_span"], "additionalProperties": False},
-        **mutation_controls,
-    }, ["ref", "notes"]), forward("clip_add_notes")))
-    server.add_tool(Tool("live_clip_duplicate_to_arrangement", "Duplicate Session clip to Arrangement.", schema({
-        "track": ref,
-        "clip": ref,
-        "destination_time": {"type": "number"},
-        **mutation_controls,
-    }, ["track", "clip", "destination_time"]), forward("clip_duplicate_to_arrangement")))
-    server.add_tool(Tool("live_clip_envelope", "Inspect or edit a clip automation envelope for one parameter.", schema({
-        "ref": ref,
-        "parameter": ref,
-        "create": {"type": "boolean"},
-        "clear": {"type": "boolean"},
-        "delete_range": {"type": "object", "properties": {
-            "start_time": {"type": "number"},
-            "end_time": {"type": "number"},
-        }, "required": ["start_time", "end_time"], "additionalProperties": False},
-        "insert_steps": {"type": "array", "items": {"type": "object", "properties": {
-            "time": {"type": "number"},
-            "duration": {"type": "number"},
-            "value": {"type": "number"},
-        }, "required": ["time", "duration", "value"], "additionalProperties": False}},
-        "start_time": {"type": "number"},
-        "end_time": {"type": "number"},
-        "limit": {"type": "integer", "minimum": 0},
-        "expected_set_signature": {"type": "string"},
-    }, ["ref", "parameter"]), forward("clip_envelope")))
-    server.add_tool(Tool("live_clip_velocity_envelope", "Map note velocities to automation.", schema({
-        "ref": ref,
-        "parameter": ref,
-        "min_value": {"type": "number"},
-        "max_value": {"type": "number"},
-        "invert": {"type": "boolean"},
-        "clear": {"type": "boolean"},
-        "step_duration": {"type": "number"},
-        "start_time": {"type": "number"},
-        "end_time": {"type": "number"},
-        "limit": {"type": "integer", "minimum": 0},
-        "expected_set_signature": {"type": "string"},
-    }, ["ref", "parameter"]), forward("clip_velocity_envelope")))
-    server.add_tool(Tool("live_clip_warp_markers", "Inspect or edit audio clip warp state and markers.", schema({
-        "ref": ref,
-        "warping": {"type": "boolean"},
-        "warp_mode": {"type": "integer"},
-        "add_markers": {"type": "array", "items": {"type": "object", "properties": {
-            "sample_time": {"type": "number"},
-            "beat_time": {"type": "number"},
-        }, "required": ["sample_time", "beat_time"], "additionalProperties": False}},
-        "move_markers": {"type": "array", "items": {"type": "object", "properties": {
-            "beat_time": {"type": "number"},
-            "beat_time_delta": {"type": "number"},
-        }, "required": ["beat_time", "beat_time_delta"], "additionalProperties": False}},
-        "remove_beat_times": {"type": "array", "items": {"type": "number"}},
-        "limit": {"type": "integer", "minimum": 0},
-        "expected_set_signature": {"type": "string"},
-    }, ["ref"]), forward("clip_warp_markers")))
-    server.add_tool(Tool("live_track_create_audio_clip", "Create Arrangement audio clip.", schema({
-        "ref": ref,
-        "file_path": {"type": "string"},
-        "destination_time": {"type": "number"},
-        "name": {"type": "string"},
-        **mutation_controls,
-    }, ["ref", "file_path", "destination_time"]), forward("track_create_audio_clip")))
-    server.add_tool(Tool("live_track_insert_device", "Insert built-in Live device.", schema({
-        "ref": ref,
-        "device_name": {"type": "string"},
-        "device_index": {"type": "integer"},
-        **mutation_controls,
-    }, ["ref", "device_name"]), forward("track_insert_device")))
+        },
+        "required": ["pitch", "start_time", "duration", "velocity"],
+        "additionalProperties": False,
+    }
+    server.add_tool(
+        Tool(
+            "live_clip_add_notes",
+            "Add notes; create a MIDI clip.",
+            schema(
+                {
+                    "ref": ref,
+                    "notes": {"type": "array", "items": note_spec},
+                    "clear": {"type": "boolean"},
+                    "create_clip_length": {"type": "number"},
+                    "clip_name": {"type": "string"},
+                    "fire": {"type": "boolean"},
+                    "replace_existing_clip": {"type": "boolean"},
+                    "allow_legacy_note_api": {"type": "boolean"},
+                    "clear_range": {
+                        "type": "object",
+                        "properties": {
+                            "from_pitch": {"type": "integer"},
+                            "pitch_span": {"type": "integer"},
+                            "from_time": {"type": "number"},
+                            "time_span": {"type": "number"},
+                        },
+                        "required": ["from_pitch", "pitch_span", "from_time", "time_span"],
+                        "additionalProperties": False,
+                    },
+                    **mutation_controls,
+                },
+                ["ref", "notes"],
+            ),
+            forward("clip_add_notes"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_clip_duplicate_to_arrangement",
+            "Duplicate Session clip to Arrangement.",
+            schema(
+                {
+                    "track": ref,
+                    "clip": ref,
+                    "destination_time": {"type": "number"},
+                    **mutation_controls,
+                },
+                ["track", "clip", "destination_time"],
+            ),
+            forward("clip_duplicate_to_arrangement"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_clip_envelope",
+            "Inspect or edit a clip automation envelope for one parameter.",
+            schema(
+                {
+                    "ref": ref,
+                    "parameter": ref,
+                    "create": {"type": "boolean"},
+                    "clear": {"type": "boolean"},
+                    "delete_range": {
+                        "type": "object",
+                        "properties": {
+                            "start_time": {"type": "number"},
+                            "end_time": {"type": "number"},
+                        },
+                        "required": ["start_time", "end_time"],
+                        "additionalProperties": False,
+                    },
+                    "insert_steps": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "time": {"type": "number"},
+                                "duration": {"type": "number"},
+                                "value": {"type": "number"},
+                            },
+                            "required": ["time", "duration", "value"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "start_time": {"type": "number"},
+                    "end_time": {"type": "number"},
+                    "limit": {"type": "integer", "minimum": 0},
+                    "expected_set_signature": {"type": "string"},
+                },
+                ["ref", "parameter"],
+            ),
+            forward("clip_envelope"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_clip_velocity_envelope",
+            "Map note velocities to automation.",
+            schema(
+                {
+                    "ref": ref,
+                    "parameter": ref,
+                    "min_value": {"type": "number"},
+                    "max_value": {"type": "number"},
+                    "invert": {"type": "boolean"},
+                    "clear": {"type": "boolean"},
+                    "step_duration": {"type": "number"},
+                    "start_time": {"type": "number"},
+                    "end_time": {"type": "number"},
+                    "limit": {"type": "integer", "minimum": 0},
+                    "expected_set_signature": {"type": "string"},
+                },
+                ["ref", "parameter"],
+            ),
+            forward("clip_velocity_envelope"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_clip_warp_markers",
+            "Inspect or edit audio clip warp state and markers.",
+            schema(
+                {
+                    "ref": ref,
+                    "warping": {"type": "boolean"},
+                    "warp_mode": {"type": "integer"},
+                    "add_markers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "sample_time": {"type": "number"},
+                                "beat_time": {"type": "number"},
+                            },
+                            "required": ["sample_time", "beat_time"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "move_markers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "beat_time": {"type": "number"},
+                                "beat_time_delta": {"type": "number"},
+                            },
+                            "required": ["beat_time", "beat_time_delta"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "remove_beat_times": {"type": "array", "items": {"type": "number"}},
+                    "limit": {"type": "integer", "minimum": 0},
+                    "expected_set_signature": {"type": "string"},
+                },
+                ["ref"],
+            ),
+            forward("clip_warp_markers"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_track_create_audio_clip",
+            "Create Arrangement audio clip.",
+            schema(
+                {
+                    "ref": ref,
+                    "file_path": {"type": "string"},
+                    "destination_time": {"type": "number"},
+                    "name": {"type": "string"},
+                    **mutation_controls,
+                },
+                ["ref", "file_path", "destination_time"],
+            ),
+            forward("track_create_audio_clip"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_track_insert_device",
+            "Insert built-in Live device.",
+            schema(
+                {
+                    "ref": ref,
+                    "device_name": {"type": "string"},
+                    "device_index": {"type": "integer"},
+                    **mutation_controls,
+                },
+                ["ref", "device_name"],
+            ),
+            forward("track_insert_device"),
+        )
+    )
     server.add_tool(Tool("live_agent_audio_tap", AGENT_AUDIO_TAP_DESCRIPTION, AGENT_AUDIO_TAP_SCHEMA, forward("agent_audio_tap")))
     server.add_tool(Tool("live_agent_audio_tap_setup", AGENT_AUDIO_TAP_SETUP_DESCRIPTION, loose_schema(), forward("agent_audio_tap_setup")))
-    server.add_tool(Tool("live_visual_capture", VISUAL_CAPTURE_DESCRIPTION, loose_schema(), lambda args: capture_ableton_window(
-        output_path=args.get("output_path"),
-        title_contains=args.get("title_contains"),
-        list_only=bool(args.get("list_only", False)),
-        backend=str(args.get("backend") or "auto"),
-        region=args.get("region"),
-        crop=args.get("crop"),
-        crop_relative_to_region=bool(args.get("crop_relative_to_region", False)),
-        bottom_fraction=args.get("bottom_fraction"),
-        max_width=args.get("max_width"),
-        max_height=args.get("max_height"),
-    )))
-    server.add_tool(Tool("live_max_console_capture", MAX_CONSOLE_CAPTURE_DESCRIPTION, loose_schema(), lambda args: capture_max_console_window(
-        output_path=args.get("output_path"),
-        title_contains=args.get("title_contains"),
-        list_only=bool(args.get("list_only", False)),
-        backend=str(args.get("backend") or "auto"),
-        region=args.get("region"),
-        crop=args.get("crop"),
-        crop_relative_to_region=bool(args.get("crop_relative_to_region", False)),
-        bottom_fraction=args.get("bottom_fraction"),
-        max_width=args.get("max_width"),
-        max_height=args.get("max_height"),
-        display=args.get("display"),
-    )))
+    server.add_tool(
+        Tool(
+            "live_visual_capture",
+            VISUAL_CAPTURE_DESCRIPTION,
+            loose_schema(),
+            lambda args: capture_ableton_window(
+                output_path=args.get("output_path"),
+                title_contains=args.get("title_contains"),
+                list_only=bool(args.get("list_only", False)),
+                backend=str(args.get("backend") or "auto"),
+                region=args.get("region"),
+                crop=args.get("crop"),
+                crop_relative_to_region=bool(args.get("crop_relative_to_region", False)),
+                bottom_fraction=args.get("bottom_fraction"),
+                max_width=args.get("max_width"),
+                max_height=args.get("max_height"),
+            ),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_max_console_capture",
+            MAX_CONSOLE_CAPTURE_DESCRIPTION,
+            loose_schema(),
+            lambda args: capture_max_console_window(
+                output_path=args.get("output_path"),
+                title_contains=args.get("title_contains"),
+                list_only=bool(args.get("list_only", False)),
+                backend=str(args.get("backend") or "auto"),
+                region=args.get("region"),
+                crop=args.get("crop"),
+                crop_relative_to_region=bool(args.get("crop_relative_to_region", False)),
+                bottom_fraction=args.get("bottom_fraction"),
+                max_width=args.get("max_width"),
+                max_height=args.get("max_height"),
+                display=args.get("display"),
+            ),
+        )
+    )
+
     def agent_m4l_device(args):
         built = None
         webui = None
@@ -383,11 +634,7 @@ def make_server(client: AbletonBridgeClient | None = None) -> StdioMcpServer:
             params["status_file"] = built["status_file"]
             previous_status_mtime = _file_mtime(params["status_file"])
         patch_for_recovery = params.get("patch") or params.get("spec")
-        if (
-            patch_for_recovery is not None
-            and params.get("command_file")
-            and should_write_agent_m4l_recovery_patch(agent_m4l_command(params), patch_for_recovery)
-        ):
+        if patch_for_recovery is not None and params.get("command_file") and should_write_agent_m4l_recovery_patch(agent_m4l_command(params), patch_for_recovery):
             write_agent_m4l_recovery_patch(str(params["command_file"]), patch_for_recovery)
         if not should_build and should_handle_agent_m4l_direct(params):
             result = handle_agent_m4l_direct(params)
@@ -418,23 +665,50 @@ def make_server(client: AbletonBridgeClient | None = None) -> StdioMcpServer:
 
     server.add_tool(Tool("live_agent_m4l_device", AGENT_M4L_TOOL_DESCRIPTION, loose_schema(), agent_m4l_device))
     server.add_tool(Tool("live_agent_m4l_cleanup", AGENT_M4L_CLEANUP_DESCRIPTION, loose_schema(), forward("agent_m4l_cleanup")))
-    server.add_tool(Tool("live_transport", "Transport status/play/continue/stop; seek.", schema({
-        "action": {"type": "string", "enum": ["play", "continue", "stop", "status"]},
-        "time": {"type": "number"},
-        "timeout": response_controls["timeout"],
-        **strict_timeout_control,
-    }), forward("transport")))
-    server.add_tool(Tool("live_batch", "Batch ops.", schema({
-        "operations": {"type": "array", "items": {"type": "object", "properties": {
-            "method": {"type": "string"},
-            "params": {"type": "object"},
-        }, "required": ["method"], "additionalProperties": False}},
-        "continue_on_error": {"type": "boolean"},
-        "include_traceback": {"type": "boolean"},
-        "expected_set_signature": {"type": "string"},
-        **response_controls,
-        **strict_timeout_control,
-    }, ["operations"]), forward("batch")))
+    server.add_tool(
+        Tool(
+            "live_transport",
+            "Transport status/play/continue/stop; seek.",
+            schema(
+                {
+                    "action": {"type": "string", "enum": ["play", "continue", "stop", "status"]},
+                    "time": {"type": "number"},
+                    "timeout": response_controls["timeout"],
+                    **strict_timeout_control,
+                }
+            ),
+            forward("transport"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_batch",
+            "Batch ops.",
+            schema(
+                {
+                    "operations": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "method": {"type": "string"},
+                                "params": {"type": "object"},
+                            },
+                            "required": ["method"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "continue_on_error": {"type": "boolean"},
+                    "include_traceback": {"type": "boolean"},
+                    "expected_set_signature": {"type": "string"},
+                    **response_controls,
+                    **strict_timeout_control,
+                },
+                ["operations"],
+            ),
+            forward("batch"),
+        )
+    )
     browser_item_ref = {
         "type": "object",
         "properties": {
@@ -446,65 +720,169 @@ def make_server(client: AbletonBridgeClient | None = None) -> StdioMcpServer:
     }
     server.add_tool(Tool("live_browser_roots", "List app.browser roots.", schema({}), forward("browser_roots")))
     server.add_tool(Tool("live_browser_capabilities", "Browser roots/filter types/semantic API exposure.", schema({}), forward("browser_capabilities")))
-    server.add_tool(Tool("live_browser_search", "Bounded browser search.", schema({
-        "query": {"type": "string"},
-        "roots": {"type": "array", "items": {"type": "string"}, "description": "incl plugins"},
-        "limit": {"type": "integer", "minimum": 1},
-        "max_depth": {"type": "integer", "minimum": 0},
-        "max_visited": {"type": "integer", "minimum": 1},
-        "loadable_only": {"type": "boolean"},
-        "include_folders": {"type": "boolean"},
-        "stop_on_limit": {"type": "boolean"},
-        "stop_score": {"type": "integer"},
-        "match_all_terms": {"type": "boolean"},
-    }), forward("browser_search")))
-    server.add_tool(Tool("live_browser_load", "Load BrowserItem.", schema({
-        "item": browser_item_ref,
-        "target_track": ref,
-        **mutation_controls,
-    }, ["item"]), forward("browser_load")))
-    server.add_tool(Tool("live_load_device", "Find device/preset by name in indexed browser (User Library/Places), load onto track; replaces dragging .amxd. path_contains disambiguates same-named matches; ambiguous->candidates. roots default user_folders+user_library.", schema({
-        "name": {"type": "string"},
-        "path_contains": {"type": "string"},
-        "name_exact": {"type": "boolean"},
-        "target_track": ref,
-        "roots": {"type": "array", "items": {"type": "string"}},
-        "max_depth": {"type": "integer", "minimum": 0},
-        "max_visited": {"type": "integer", "minimum": 1},
-        **mutation_controls,
-    }, ["name"]), forward("load_device")))
-    server.add_tool(Tool("live_browser_preview", "Preview or stop previewing a BrowserItem.", schema({
-        "item": browser_item_ref,
-        "stop": {"type": "boolean"},
-    }), forward("browser_preview")))
-    server.add_tool(Tool("find_similar_sounds", "Find similar sounds from Live 12+ local sound-analysis DB.", schema({
-        "base": {"type": "string"},
-        "query": {"type": "string"},
-        "limit": {"type": "integer", "minimum": 1},
-        "include_self": {"type": "boolean"},
-        "db_path": {"type": "string"},
-    }), find_similar_sounds))
-    server.add_tool(Tool("live_eval", "Eval expression; use live_exec.", schema({
-        "expr": {"type": "string"},
-        "ref": ref,
-        "allow_legacy_note_api": {"type": "boolean"},
-        **response_controls,
-    }, ["expr"]), forward("eval")))
-    server.add_tool(Tool("live_exec", "Run Live Python statements.", schema({
-        "code": {"type": "string"},
-        "ref": ref,
-        "allow_legacy_note_api": {"type": "boolean"},
-        **guarded_response_controls,
-        **strict_timeout_control,
-    }, ["code"]), forward("exec")))
-    server.add_tool(Tool("live_observe", "Add/remove property listener.", schema({
-        "ref": ref,
-        "property": {"type": "string"},
-        "enabled": {"type": "boolean"},
-    }, ["ref", "property", "enabled"]), forward("observe")))
-    server.add_tool(Tool("live_events", "Drain retained Live listener events.", schema({
-        "limit": {"type": "integer", "minimum": 1},
-    }), forward("events")))
+    server.add_tool(
+        Tool(
+            "live_browser_search",
+            "Bounded browser search.",
+            schema(
+                {
+                    "query": {"type": "string"},
+                    "roots": {"type": "array", "items": {"type": "string"}, "description": "incl plugins"},
+                    "limit": {"type": "integer", "minimum": 1},
+                    "max_depth": {"type": "integer", "minimum": 0},
+                    "max_visited": {"type": "integer", "minimum": 1},
+                    "loadable_only": {"type": "boolean"},
+                    "include_folders": {"type": "boolean"},
+                    "stop_on_limit": {"type": "boolean"},
+                    "stop_score": {"type": "integer"},
+                    "match_all_terms": {"type": "boolean"},
+                }
+            ),
+            forward("browser_search"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_browser_load",
+            "Load BrowserItem.",
+            schema(
+                {
+                    "item": browser_item_ref,
+                    "target_track": ref,
+                    **mutation_controls,
+                },
+                ["item"],
+            ),
+            forward("browser_load"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_load_device",
+            "Find device/preset by name in indexed browser (User Library/Places), load onto track; replaces dragging .amxd. path_contains disambiguates same-named matches; ambiguous->candidates. roots default user_folders+user_library.",
+            schema(
+                {
+                    "name": {"type": "string"},
+                    "path_contains": {"type": "string"},
+                    "name_exact": {"type": "boolean"},
+                    "target_track": ref,
+                    "roots": {"type": "array", "items": {"type": "string"}},
+                    "max_depth": {"type": "integer", "minimum": 0},
+                    "max_visited": {"type": "integer", "minimum": 1},
+                    **mutation_controls,
+                },
+                ["name"],
+            ),
+            forward("load_device"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_browser_preview",
+            "Preview or stop previewing a BrowserItem.",
+            schema(
+                {
+                    "item": browser_item_ref,
+                    "stop": {"type": "boolean"},
+                }
+            ),
+            forward("browser_preview"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "find_similar_sounds",
+            "Find similar sounds from Live 12+ local sound-analysis DB.",
+            schema(
+                {
+                    "base": {"type": "string"},
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "minimum": 1},
+                    "include_self": {"type": "boolean"},
+                    "db_path": {"type": "string"},
+                }
+            ),
+            find_similar_sounds,
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_prep_vocal_sample",
+            "Trim silence from a vocal sample and transcribe it.",
+            schema(
+                {
+                    "file_path": {"type": "string"},
+                    "output_dir": {"type": "string"},
+                    "trim": {"type": "boolean"},
+                    "silence_thresh_db": {"type": "number"},
+                    "transcribe": {"type": "boolean"},
+                    "model": {"type": "string", "description": "faster-whisper model size, e.g. tiny/base/small."},
+                },
+                ["file_path"],
+            ),
+            prep_vocal_sample,
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_eval",
+            "Eval expression; use live_exec.",
+            schema(
+                {
+                    "expr": {"type": "string"},
+                    "ref": ref,
+                    "allow_legacy_note_api": {"type": "boolean"},
+                    **response_controls,
+                },
+                ["expr"],
+            ),
+            forward("eval"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_exec",
+            "Run Live Python statements.",
+            schema(
+                {
+                    "code": {"type": "string"},
+                    "ref": ref,
+                    "allow_legacy_note_api": {"type": "boolean"},
+                    **guarded_response_controls,
+                    **strict_timeout_control,
+                },
+                ["code"],
+            ),
+            forward("exec"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_observe",
+            "Add/remove property listener.",
+            schema(
+                {
+                    "ref": ref,
+                    "property": {"type": "string"},
+                    "enabled": {"type": "boolean"},
+                },
+                ["ref", "property", "enabled"],
+            ),
+            forward("observe"),
+        )
+    )
+    server.add_tool(
+        Tool(
+            "live_events",
+            "Drain retained Live listener events.",
+            schema(
+                {
+                    "limit": {"type": "integer", "minimum": 1},
+                }
+            ),
+            forward("events"),
+        )
+    )
     return server
 
 
@@ -682,34 +1060,44 @@ def preflight_agent_m4l(params: dict[str, Any]) -> dict[str, Any]:
     device_height = int(params.get("device_height") or 0)
     if presentation_bounds:
         if presentation_bounds["min_x"] < 0 or presentation_bounds["min_y"] < 0:
-            warnings.append({
-                "code": "presentation_rect_negative_origin_may_clip",
-                "bounds": presentation_bounds,
-            })
+            warnings.append(
+                {
+                    "code": "presentation_rect_negative_origin_may_clip",
+                    "bounds": presentation_bounds,
+                }
+            )
         if device_width and presentation_bounds["right"] > device_width:
-            warnings.append({
-                "code": "presentation_rect_exceeds_device_width",
-                "right": presentation_bounds["right"],
-                "device_width": device_width,
-            })
+            warnings.append(
+                {
+                    "code": "presentation_rect_exceeds_device_width",
+                    "right": presentation_bounds["right"],
+                    "device_width": device_width,
+                }
+            )
         if device_height and presentation_bounds["bottom"] > device_height:
-            warnings.append({
-                "code": "presentation_rect_exceeds_device_height",
-                "bottom": presentation_bounds["bottom"],
-                "device_height": device_height,
-            })
+            warnings.append(
+                {
+                    "code": "presentation_rect_exceeds_device_height",
+                    "bottom": presentation_bounds["bottom"],
+                    "device_height": device_height,
+                }
+            )
     if device_height > AGENT_M4L_LIVE_DEVICE_HEIGHT_ADVISORY:
-        warnings.append({
-            "code": "tall_device_height_visual_capture_required",
-            "device_height": device_height,
-            "advisory_height": AGENT_M4L_LIVE_DEVICE_HEIGHT_ADVISORY,
-        })
+        warnings.append(
+            {
+                "code": "tall_device_height_visual_capture_required",
+                "device_height": device_height,
+                "advisory_height": AGENT_M4L_LIVE_DEVICE_HEIGHT_ADVISORY,
+            }
+        )
     if device_width > AGENT_M4L_LIVE_DEVICE_WIDTH_ADVISORY:
-        warnings.append({
-            "code": "wide_device_width_visual_capture_required",
-            "device_width": device_width,
-            "advisory_width": AGENT_M4L_LIVE_DEVICE_WIDTH_ADVISORY,
-        })
+        warnings.append(
+            {
+                "code": "wide_device_width_visual_capture_required",
+                "device_width": device_width,
+                "advisory_width": AGENT_M4L_LIVE_DEVICE_WIDTH_ADVISORY,
+            }
+        )
     command_bytes = len(json.dumps(params, separators=(",", ":"), default=str).encode("utf-8"))
     if command_bytes > AGENT_M4L_MAX_UDP_BYTES:
         warnings.append({"code": "udp_hint_will_skip_large_payload", "bytes": command_bytes})
@@ -815,9 +1203,12 @@ def materialize_agent_m4l_webui(instance_id: str, webui: Any) -> Any:
         rendered = write_webui(instance_id, result)
         result = materialized_agent_m4l_webui(result, rendered)
     elif _has_agent_m4l_webui_source_assets(result):
-        result = materialized_agent_m4l_webui(result, {
-            "assets": write_agent_m4l_webui_assets(instance_id, result),
-        })
+        result = materialized_agent_m4l_webui(
+            result,
+            {
+                "assets": write_agent_m4l_webui_assets(instance_id, result),
+            },
+        )
     return result
 
 
@@ -1151,11 +1542,7 @@ def agent_m4l_recovery_patch(command_path: str) -> Any:
         payload = {}
     patch = payload.get("patch") or payload.get("spec")
     if not patch:
-        recovered = {
-            key: payload[key]
-            for key in AGENT_M4L_RECOVERY_PATCH_KEYS
-            if key in payload
-        }
+        recovered = {key: payload[key] for key in AGENT_M4L_RECOVERY_PATCH_KEYS if key in payload}
         patch = recovered or None
     return patch or agent_m4l_sidecar_recovery_patch(command_path)
 
@@ -1401,7 +1788,38 @@ def normalize_agent_m4l_state_keys(value: Any) -> set[str]:
 def summarize_agent_m4l_status(status: dict[str, Any], state_keys: set[str] | None = None, state_keys_only: bool = False) -> dict[str, Any]:
     state_keys = state_keys or set()
     summary: dict[str, Any] = {}
-    for key in ("event", "command_id", "last_reload_command_id", "host_runtime_version", "host_runtime_status", "dynamic_objects", "webuis", "device_width", "device_height", "id", "reason", "attempt", "attempts", "message", "reload_seen", "webui_status", "changed", "source", "target", "connection_errors_truncated", "timed_out", "expected_command_id", "expected_event", "mismatch", "timeout_reason", "error", "path", "last_status_age_seconds", "status_file_updated_after_command", "state_keys"):
+    for key in (
+        "event",
+        "command_id",
+        "last_reload_command_id",
+        "host_runtime_version",
+        "host_runtime_status",
+        "dynamic_objects",
+        "webuis",
+        "device_width",
+        "device_height",
+        "id",
+        "reason",
+        "attempt",
+        "attempts",
+        "message",
+        "reload_seen",
+        "webui_status",
+        "changed",
+        "source",
+        "target",
+        "connection_errors_truncated",
+        "timed_out",
+        "expected_command_id",
+        "expected_event",
+        "mismatch",
+        "timeout_reason",
+        "error",
+        "path",
+        "last_status_age_seconds",
+        "status_file_updated_after_command",
+        "state_keys",
+    ):
         if key in status:
             summary[key] = status.get(key)
     last_status = status.get("last_status")
@@ -1411,7 +1829,8 @@ def summarize_agent_m4l_status(status: dict[str, Any], state_keys: set[str] | No
     if isinstance(state, dict):
         summary["state_keys"] = sorted(str(key) for key in state.keys())[:40]
         focused = {
-            str(key): compact_agent_m4l_status_value(value) for key, value in state.items()
+            str(key): compact_agent_m4l_status_value(value)
+            for key, value in state.items()
             if str(key) in state_keys or (not state_keys_only and str(key).startswith(("web_", "command_wake", "filewatch", "live_parameter")))
         }
         if focused:

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import select
 import socket
-import itertools
 import threading
 import time
 from dataclasses import dataclass
@@ -140,10 +140,7 @@ class AbletonBridgeClient:
 
     def _timeout_message(self, method: str, params: dict[str, Any]) -> str:
         request_timeout = self._request_timeout(method, params)
-        message = (
-            f"Ableton bridge request {method!r} timed out after {request_timeout:g}s waiting for a response. "
-            "The request was sent, so it was not retried automatically."
-        )
+        message = f"Ableton bridge request {method!r} timed out after {request_timeout:g}s waiting for a response. The request was sent, so it was not retried automatically."
         if method not in NO_MAIN_THREAD_METHODS:
             message += " Further Live API calls will fail fast during a short client-side stall cooldown."
         return message
@@ -157,8 +154,7 @@ class AbletonBridgeClient:
         previous = self._main_thread_stall_method or "unknown"
         raise AbletonBridgeError(
             "Ableton bridge client is in stall cooldown after %r timed out; refusing to send %r for %.1fs. "
-            "Use live_bridge_status for socket-thread health or recover/restart Live before sending mutations."
-            % (previous, method, remaining)
+            "Use live_bridge_status for socket-thread health or recover/restart Live before sending mutations." % (previous, method, remaining)
         )
 
     def _mark_client_stall(self, method: str, params: dict[str, Any]) -> None:

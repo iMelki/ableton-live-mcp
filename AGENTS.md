@@ -308,3 +308,83 @@ Generated hosts may also create Max-object `live.path`/`live.observer value` obs
 When routing Max-object `live.observer value` output into generated bindings, normalize observer atoms first. Max may output `value <number>` rather than a bare number; the binding layer must apply the observed numeric value, not the literal symbol.
 
 Generated hosts also expose a hidden Live parameter used only to try to wake the command-file poller; Live may surface it as `Agent Poll`, `Agent M4L Poll`, or the Max box name `command-trigger`. After writing a command file, the Remote Script may toggle one of those names on the target generated device when a target track is available, but the command is not successful until the status file reports the matching `command_id`.
+
+## Vocal sample prep (`live_prep_vocal_sample`)
+
+Trimming (`pydub`) has no external dependency beyond the `vocals`/`dev`
+extra. Transcription (`faster-whisper`, only imported if `transcribe` isn't
+explicitly `False`) downloads its model from Hugging Face Hub on first use
+per `model` size (default `"base"`) and caches it locally (`~/.cache/huggingface`
+by default, or wherever `HF_HOME`/`HUGGINGFACE_HUB_CACHE` point) — this
+means the *first* call with a given model size needs network access and
+takes noticeably longer than subsequent calls. For an offline environment,
+pre-fetch the model once with network access before relying on this tool,
+or pass `"transcribe": false` to only trim.
+
+## Composing a chord track for an existing melody
+
+No dedicated tool for this — it doesn't need one. Read the melody with
+`live_clip_notes`, reason about key/scale/chords yourself from the raw note
+events (an LLM does this reasonably well without extra tooling), then write
+the chord clip back with `live_clip_add_notes` on a new track. See
+`docs/roadmap-ideas.md` ("Resolution: no new tool needed for v1") for why a
+bespoke chord-generation tool wasn't built: the real prior art for this is
+full research codebases with trained model weights, disproportionate to
+this project.
+
+## Developing on this repo (not setting it up as an end user)
+
+See `CONTRIBUTING.md` for the full dev workflow. Key things worth knowing:
+
+- **Run `python -m pytest` before pushing**, and check `origin/main`'s
+  current state first if your branch has been open a while — this repo
+  moves fast (module renames, new tools landing frequently), and a stale
+  local base risks redundant or conflicting work. There is CI now
+  (`.github/workflows/ci.yml`), but check locally too.
+- **`schema({})` means "accepts zero arguments," not "accepts anything."**
+  For a tool with genuinely too-flexible arguments, use `loose_schema()`
+  instead of a strict schema you won't keep in sync with its handler.
+  `mcp_stdio.py` enforces at registration time that every schema is a
+  well-formed JSON Schema object; `tests/test_schema_consistency.py`
+  separately checks that strict-schema tools declare every `params` key
+  their handler actually reads.
+- **The full `tools/list` JSON response is budget-capped**
+  (`test_tool_list_stays_compact` in `tests/test_mcp_server.py`) to keep
+  the tool list cheap for the calling agent to load. Raising the budget is
+  sometimes the right call but do it deliberately with a comment, not by
+  accident.
+- **`docs/tools.md` is generated, not hand-written.** Run
+  `python scripts/generate_tool_docs.py` after changing any tool's
+  schema/description; `test_generated_tool_docs_are_up_to_date` fails CI
+  if you forget.
+- **16 tests under `test_validate_*` are expected to fail on Linux** — a
+  pre-existing macOS/Windows-only M4L-host validation gate, unrelated to
+  most changes. CI's Linux `test` job deselects them explicitly; the
+  `test-macos` job runs them for real on a macOS runner instead. Don't
+  chase Linux-only failures here down as a regression unless you're
+  actually working on `validate.py`/`agent_m4l.py`.
+- Changes to `Ableton_Live_MCP/bridge.py`'s actual Live Object Model calls
+  or the Max for Live devices can't be fully verified without a real
+  Ableton Live install — say so explicitly in a PR if you couldn't test
+  against real Ableton, since this project edits users' Live Sets directly.
+
+## mypy: surveyed, not yet adopted
+
+A survey with `mypy --ignore-missing-imports` across the pure-Python modules
+(everything except `Ableton_Live_MCP/bridge.py`, which is fundamentally a
+dynamic-reflection bridge to Live's embedded API and a poor fit for static
+typing) found ~20 findings across `server.py`, `prompt_audit.py`,
+`agent_m4l.py`, `validate.py`, `visual_capture.py`, and `similar_sounds.py`.
+None inspected so far are real runtime bugs — they're typing-precision gaps:
+unannotated heterogeneous dict literals causing mypy to over-narrow a
+variable's inferred type (fix: add an explicit `dict[str, Any]` annotation
+at the first assignment), `os.environ`'s `_Environ[str]` not matching a
+`dict[str, str]` parameter type (fix: type it `Mapping[str, str]`), and
+platform-conditional `ctypes`/Pillow typeshed strictness on Windows-only
+code paths. Worth noting: `validate.py`'s `mcp_tool_schema_status()`
+already runtime-checks that `live_agent_audio_tap`/`live_transport`/
+`live_ping`'s schemas match expected shape — independent confirmation this
+project already takes the "tool schema silently drifts" bug class
+seriously via a different mechanism than `tests/test_schema_consistency.py`.
+Adopting mypy cleanly needs a dedicated pass to verify and fix each finding
+individually, not something to fold into an unrelated change.

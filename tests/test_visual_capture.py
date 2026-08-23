@@ -130,12 +130,18 @@ def test_is_max_console_window_ignores_standalone_max_and_other_live_windows():
     # The PR is scoped to the M4L console only: the standalone Max app's
     # "Max Console" window and ordinary Live windows are not matched.
     standalone_max = WindowInfo(
-        platform="Darwin", id=400, title="Max Console", owner="Max",
+        platform="Darwin",
+        id=400,
+        title="Max Console",
+        owner="Max",
         process_path="/Applications/Max.app/Contents/MacOS/Max",
         bundle_id="com.cycling74.Max",
     )
     live_set = WindowInfo(
-        platform="Darwin", id=401, title="Untitled", owner="Live",
+        platform="Darwin",
+        id=401,
+        title="Untitled",
+        owner="Live",
         process_path="/Applications/Ableton Live 12 Suite.app/Contents/MacOS/Live",
         bundle_id="com.ableton.live",
     )
@@ -147,15 +153,23 @@ def test_select_max_console_prefers_onscreen(monkeypatch):
     # Two "Max for Live" windows (e.g. console + patcher editor): the on-screen
     # one wins even though the other is larger.
     offscreen = WindowInfo(
-        platform="Darwin", id=45956, title="Max for Live", owner="Live",
+        platform="Darwin",
+        id=45956,
+        title="Max for Live",
+        owner="Live",
         process_path="/Applications/Ableton Live 12 Suite.app/Contents/MacOS/Live",
-        bundle_id="com.ableton.live", onscreen=False,
+        bundle_id="com.ableton.live",
+        onscreen=False,
         bounds={"x": 0, "y": 0, "width": 1200, "height": 1200},
     )
     onscreen = WindowInfo(
-        platform="Darwin", id=90105, title="Max for Live", owner="Live",
+        platform="Darwin",
+        id=90105,
+        title="Max for Live",
+        owner="Live",
         process_path="/Applications/Ableton Live 12 Suite.app/Contents/MacOS/Live",
-        bundle_id="com.ableton.live", onscreen=True,
+        bundle_id="com.ableton.live",
+        onscreen=True,
         bounds={"x": 0, "y": 0, "width": 575, "height": 576},
     )
     monkeypatch.setattr(visual_capture, "list_platform_windows", lambda: [offscreen, onscreen])
@@ -179,68 +193,86 @@ def test_capture_allows_max_console_window(monkeypatch):
 
 
 def test_max_console_list_only_filters(monkeypatch):
-    monkeypatch.setattr(visual_capture, "list_platform_windows", lambda: [
-        WindowInfo(
-            platform="Darwin", id=90105, title="Max for Live", owner="Live",
-            process_path="/Applications/Ableton Live 12 Suite.app/Contents/MacOS/Live",
-            bundle_id="com.ableton.live",
-            bounds={"x": 0, "y": 0, "width": 575, "height": 576},
-        ),
-        WindowInfo(
-            platform="Darwin", id=300, title="Untitled", owner="Live",
-            process_path="/Applications/Ableton Live 12 Suite.app/Contents/MacOS/Live",
-            bundle_id="com.ableton.live",
-            bounds={"x": 0, "y": 0, "width": 1200, "height": 800},
-        ),
-    ])
+    monkeypatch.setattr(
+        visual_capture,
+        "list_platform_windows",
+        lambda: [
+            WindowInfo(
+                platform="Darwin",
+                id=90105,
+                title="Max for Live",
+                owner="Live",
+                process_path="/Applications/Ableton Live 12 Suite.app/Contents/MacOS/Live",
+                bundle_id="com.ableton.live",
+                bounds={"x": 0, "y": 0, "width": 575, "height": 576},
+            ),
+            WindowInfo(
+                platform="Darwin",
+                id=300,
+                title="Untitled",
+                owner="Live",
+                process_path="/Applications/Ableton Live 12 Suite.app/Contents/MacOS/Live",
+                bundle_id="com.ableton.live",
+                bounds={"x": 0, "y": 0, "width": 1200, "height": 800},
+            ),
+        ],
+    )
     result = visual_capture.capture_max_console_window(list_only=True)
     assert result["count"] == 1
     assert result["windows"][0]["id"] == 90105
 
 
 def test_title_filter_applies_after_ableton_filter(monkeypatch):
-    monkeypatch.setattr(visual_capture, "list_platform_windows", lambda: [
-        WindowInfo(
-            platform="Windows",
-            id=100,
-            title="Ableton Set",
-            owner="Ableton Live",
-            process_path=r"C:\Ableton Live.exe",
-            bounds={"x": 0, "y": 0, "width": 1200, "height": 800},
-        ),
-        WindowInfo(
-            platform="Windows",
-            id=200,
-            title="Ableton Notes in Browser",
-            owner="Chrome",
-            process_path=r"C:\chrome.exe",
-            bounds={"x": 0, "y": 0, "width": 1400, "height": 900},
-        ),
-    ])
+    monkeypatch.setattr(
+        visual_capture,
+        "list_platform_windows",
+        lambda: [
+            WindowInfo(
+                platform="Windows",
+                id=100,
+                title="Ableton Set",
+                owner="Ableton Live",
+                process_path=r"C:\Ableton Live.exe",
+                bounds={"x": 0, "y": 0, "width": 1200, "height": 800},
+            ),
+            WindowInfo(
+                platform="Windows",
+                id=200,
+                title="Ableton Notes in Browser",
+                owner="Chrome",
+                process_path=r"C:\chrome.exe",
+                bounds={"x": 0, "y": 0, "width": 1400, "height": 900},
+            ),
+        ],
+    )
     assert visual_capture.select_ableton_window("Set").id == 100
     with pytest.raises(RuntimeError, match="No Ableton Live window"):
         visual_capture.select_ableton_window("Browser")
 
 
 def test_list_only_returns_ableton_windows(monkeypatch):
-    monkeypatch.setattr(visual_capture, "list_platform_windows", lambda: [
-        WindowInfo(
-            platform="Windows",
-            id=100,
-            title="Ableton Set",
-            owner="Ableton Live",
-            process_path=r"C:\Ableton Live.exe",
-            bounds={"x": 0, "y": 0, "width": 1200, "height": 800},
-        ),
-        WindowInfo(
-            platform="Windows",
-            id=200,
-            title="Browser",
-            owner="Chrome",
-            process_path=r"C:\chrome.exe",
-            bounds={"x": 0, "y": 0, "width": 1400, "height": 900},
-        ),
-    ])
+    monkeypatch.setattr(
+        visual_capture,
+        "list_platform_windows",
+        lambda: [
+            WindowInfo(
+                platform="Windows",
+                id=100,
+                title="Ableton Set",
+                owner="Ableton Live",
+                process_path=r"C:\Ableton Live.exe",
+                bounds={"x": 0, "y": 0, "width": 1200, "height": 800},
+            ),
+            WindowInfo(
+                platform="Windows",
+                id=200,
+                title="Browser",
+                owner="Chrome",
+                process_path=r"C:\chrome.exe",
+                bounds={"x": 0, "y": 0, "width": 1400, "height": 900},
+            ),
+        ],
+    )
     result = visual_capture.capture_ableton_window(list_only=True)
     assert result["count"] == 1
     assert result["windows"][0]["id"] == 100
@@ -343,15 +375,26 @@ def test_visual_capture_cli_passes_crop_relative_to_region(monkeypatch, capsys):
 
     monkeypatch.setattr(visual_capture, "capture_ableton_window", fake_capture)
 
-    assert visual_capture.main([
-        "--output", "/tmp/live.png",
-        "--region", "device-detail",
-        "--crop", "1,2,3,4",
-        "--crop-relative-to-region",
-        "--bottom-fraction", "0.5",
-        "--max-width", "800",
-        "--max-height", "300",
-    ]) == 0
+    assert (
+        visual_capture.main(
+            [
+                "--output",
+                "/tmp/live.png",
+                "--region",
+                "device-detail",
+                "--crop",
+                "1,2,3,4",
+                "--crop-relative-to-region",
+                "--bottom-fraction",
+                "0.5",
+                "--max-width",
+                "800",
+                "--max-height",
+                "300",
+            ]
+        )
+        == 0
+    )
     capsys.readouterr()
     assert captured["crop_relative_to_region"] is True
     assert captured["bottom_fraction"] == 0.5
@@ -361,17 +404,21 @@ def test_visual_capture_cli_passes_crop_relative_to_region(monkeypatch, capsys):
 
 def test_capture_blank_full_window_includes_validation_blocker(monkeypatch, tmp_path):
     Image = pytest.importorskip("PIL.Image")
-    monkeypatch.setattr(visual_capture, "list_platform_windows", lambda: [
-        WindowInfo(
-            platform="Darwin",
-            id=100,
-            title="vibe-m4l",
-            owner="Live",
-            process_path="/Applications/Ableton Live Suite.app/Contents/MacOS/Live",
-            bundle_id="com.ableton.live",
-            bounds={"x": 0, "y": 33, "width": 1200, "height": 800},
-        )
-    ])
+    monkeypatch.setattr(
+        visual_capture,
+        "list_platform_windows",
+        lambda: [
+            WindowInfo(
+                platform="Darwin",
+                id=100,
+                title="vibe-m4l",
+                owner="Live",
+                process_path="/Applications/Ableton Live Suite.app/Contents/MacOS/Live",
+                bundle_id="com.ableton.live",
+                bounds={"x": 0, "y": 33, "width": 1200, "height": 800},
+            )
+        ],
+    )
     monkeypatch.setattr(visual_capture, "capture_window", lambda _window, output, _backend: Image.new("RGB", (200, 100), "black").save(output) or "fake")
 
     result = visual_capture.capture_ableton_window(output_path=tmp_path / "live.png")
@@ -383,17 +430,21 @@ def test_capture_blank_full_window_includes_validation_blocker(monkeypatch, tmp_
 
 def test_capture_blank_result_includes_validation_blocker(monkeypatch, tmp_path):
     Image = pytest.importorskip("PIL.Image")
-    monkeypatch.setattr(visual_capture, "list_platform_windows", lambda: [
-        WindowInfo(
-            platform="Darwin",
-            id=100,
-            title="vibe-m4l",
-            owner="Live",
-            process_path="/Applications/Ableton Live Suite.app/Contents/MacOS/Live",
-            bundle_id="com.ableton.live",
-            bounds={"x": 0, "y": 33, "width": 1200, "height": 800},
-        )
-    ])
+    monkeypatch.setattr(
+        visual_capture,
+        "list_platform_windows",
+        lambda: [
+            WindowInfo(
+                platform="Darwin",
+                id=100,
+                title="vibe-m4l",
+                owner="Live",
+                process_path="/Applications/Ableton Live Suite.app/Contents/MacOS/Live",
+                bundle_id="com.ableton.live",
+                bounds={"x": 0, "y": 33, "width": 1200, "height": 800},
+            )
+        ],
+    )
 
     def fake_capture(_window, output, _backend):
         Image.new("RGB", (200, 100), "black").save(output)
@@ -424,26 +475,30 @@ def test_image_content_stats_detects_nonblank_capture():
 
 
 def test_default_selection_prefers_largest_verified_ableton_window(monkeypatch):
-    monkeypatch.setattr(visual_capture, "list_platform_windows", lambda: [
-        WindowInfo(
-            platform="Darwin",
-            id=10,
-            title="",
-            owner="Live",
-            process_path="/Applications/Ableton Live Suite.app/Contents/MacOS/Live",
-            bundle_id="com.ableton.live",
-            bounds={"x": 0, "y": 0, "width": 1470, "height": 33},
-        ),
-        WindowInfo(
-            platform="Darwin",
-            id=20,
-            title="vibe-m4l",
-            owner="Live",
-            process_path="/Applications/Ableton Live Suite.app/Contents/MacOS/Live",
-            bundle_id="com.ableton.live",
-            bounds={"x": 0, "y": 33, "width": 1313, "height": 923},
-        ),
-    ])
+    monkeypatch.setattr(
+        visual_capture,
+        "list_platform_windows",
+        lambda: [
+            WindowInfo(
+                platform="Darwin",
+                id=10,
+                title="",
+                owner="Live",
+                process_path="/Applications/Ableton Live Suite.app/Contents/MacOS/Live",
+                bundle_id="com.ableton.live",
+                bounds={"x": 0, "y": 0, "width": 1470, "height": 33},
+            ),
+            WindowInfo(
+                platform="Darwin",
+                id=20,
+                title="vibe-m4l",
+                owner="Live",
+                process_path="/Applications/Ableton Live Suite.app/Contents/MacOS/Live",
+                bundle_id="com.ableton.live",
+                bounds={"x": 0, "y": 33, "width": 1313, "height": 923},
+            ),
+        ],
+    )
     assert visual_capture.select_ableton_window().id == 20
 
 
@@ -502,15 +557,19 @@ def test_windows_capture_rejects_stale_window_id(monkeypatch, tmp_path):
         owner="Ableton Live",
         process_path=r"C:\Program Files\Ableton\Ableton Live Suite\Program\Ableton Live Suite.exe",
     )
-    monkeypatch.setattr(visual_capture, "list_platform_windows", lambda: [
-        WindowInfo(
-            platform="Windows",
-            id=101,
-            title="Untitled",
-            owner="Ableton Live",
-            process_path=r"C:\Program Files\Ableton\Ableton Live Suite\Program\Ableton Live Suite.exe",
-        ),
-    ])
+    monkeypatch.setattr(
+        visual_capture,
+        "list_platform_windows",
+        lambda: [
+            WindowInfo(
+                platform="Windows",
+                id=101,
+                title="Untitled",
+                owner="Ableton Live",
+                process_path=r"C:\Program Files\Ableton\Ableton Live Suite\Program\Ableton Live Suite.exe",
+            ),
+        ],
+    )
 
     with pytest.raises(RuntimeError, match="window id .* could not be re-verified"):
         visual_capture.capture_window(target, tmp_path / "live.png", backend="windows-capture")
@@ -526,15 +585,19 @@ def test_windows_capture_rejects_id_belonging_to_non_ableton(monkeypatch, tmp_pa
         owner="Ableton Live",
         process_path=r"C:\Program Files\Ableton\Ableton Live Suite\Program\Ableton Live Suite.exe",
     )
-    monkeypatch.setattr(visual_capture, "list_platform_windows", lambda: [
-        WindowInfo(
-            platform="Windows",
-            id=100,
-            title="Untitled",
-            owner="Notes",
-            process_path=r"C:\Windows\notepad.exe",
-        ),
-    ])
+    monkeypatch.setattr(
+        visual_capture,
+        "list_platform_windows",
+        lambda: [
+            WindowInfo(
+                platform="Windows",
+                id=100,
+                title="Untitled",
+                owner="Notes",
+                process_path=r"C:\Windows\notepad.exe",
+            ),
+        ],
+    )
 
     with pytest.raises(RuntimeError, match="not an Ableton Live / Max Console window"):
         visual_capture.capture_window(target, tmp_path / "live.png", backend="windows-capture")

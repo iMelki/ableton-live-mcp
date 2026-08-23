@@ -15,7 +15,9 @@ dependencies = []
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "ruff>=0.15",
     "Pillow>=10",
+    "pydub>=0.25",
     "pyobjc-framework-Quartz; platform_system == 'Darwin'",
     "pyobjc-framework-ScreenCaptureKit; platform_system == 'Darwin'",
     "windows-capture>=2.0; platform_system == 'Windows'",
@@ -27,6 +29,7 @@ visual = [
     "pyobjc-framework-ScreenCaptureKit; platform_system == 'Darwin'",
     "windows-capture>=2.0; platform_system == 'Windows'",
 ]
+vocals = ["pydub>=0.25", "faster-whisper>=1.0"]
 
 [project.scripts]
 ableton-live-mcp = "server:main"
@@ -39,6 +42,19 @@ ableton-live-mcp-capture-window = "visual_capture:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 200
+target-version = "py310"
+extend-exclude = [".claude"]
+
+[tool.ruff.lint]
+# Pyflakes (unused imports/vars, undefined names) and import sorting: both are
+# fully mechanical and pass clean without a stylistic rewrite. Pyupgrade (UP) is
+# deliberately NOT enabled -- most of its findings here (168 of 187) want to
+# rewrite the codebase's consistent, intentional %-style string formatting to
+# f-strings, which is a large unrelated stylistic diff, not a mechanical fix.
+select = ["F", "I"]
 
 [tool.hatch.build.targets.wheel]
 only-include = ["src", "m4l", "scripts"]

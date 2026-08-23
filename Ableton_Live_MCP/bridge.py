@@ -1,7 +1,7 @@
 from __future__ import absolute_import, print_function
 
-import json
 import hashlib
+import json
 import os
 import socket
 import sys
@@ -11,7 +11,6 @@ import traceback
 
 import Live
 from _Framework.ControlSurface import ControlSurface
-
 
 HOST = "127.0.0.1"
 PORT = 8765
@@ -33,8 +32,18 @@ AGENT_M4L_PORT = 17655
 AGENT_M4L_PORT_SPAN = 30000
 AGENT_M4L_MAX_UDP_BYTES = 8192
 AGENT_M4L_RECOVERY_PATCH_KEYS = (
-    "objects", "connections", "ui_bindings", "bindings", "webui", "webuis",
-    "device_width", "devicewidth", "width", "device_height", "deviceheight", "height",
+    "objects",
+    "connections",
+    "ui_bindings",
+    "bindings",
+    "webui",
+    "webuis",
+    "device_width",
+    "devicewidth",
+    "width",
+    "device_height",
+    "deviceheight",
+    "height",
 )
 LEGACY_NOTE_API_NAMES = (
     "set_notes",
@@ -328,8 +337,7 @@ class AbletonLiveMCP(ControlSurface):
             previous = getattr(self, "_main_thread_last_timeout_method", None) or "unknown"
             raise RuntimeError(
                 "Live main thread is in stall cooldown after %s timed out; refusing to enqueue %s for %.1fs. "
-                "Use live_bridge_status for socket-thread health, wait for cooldown, or restart/reload Live before sending mutations."
-                % (previous, method, remaining)
+                "Use live_bridge_status for socket-thread health, wait for cooldown, or restart/reload Live before sending mutations." % (previous, method, remaining)
             )
 
     def _ensure_main_thread_request_gate(self):
@@ -352,8 +360,7 @@ class AbletonLiveMCP(ControlSurface):
         suffix = " after that request already timed out" if getattr(self, "_main_thread_busy_timed_out", False) else ""
         raise RuntimeError(
             "Live main-thread request already in flight (%s for %.1fs%s); refusing to enqueue %s. "
-            "Use live_bridge_status for socket-thread health, then recover or restart/reload Live before sending mutations."
-            % (busy_method, busy_for, suffix, method)
+            "Use live_bridge_status for socket-thread health, then recover or restart/reload Live before sending mutations." % (busy_method, busy_for, suffix, method)
         )
 
     def _release_main_thread_request_gate(self, released):
@@ -416,12 +423,20 @@ class AbletonLiveMCP(ControlSurface):
         if path:
             args.append(path)
         request_id = params.get("id")
-        command_id = params.get("command_id") or hashlib.sha1(json.dumps({
-            "request_id": request_id,
-            "command": command,
-            "path": path,
-            "time": time.time(),
-        }, sort_keys=True).encode("utf-8")).hexdigest()
+        command_id = (
+            params.get("command_id")
+            or hashlib.sha1(
+                json.dumps(
+                    {
+                        "request_id": request_id,
+                        "command": command,
+                        "path": path,
+                        "time": time.time(),
+                    },
+                    sort_keys=True,
+                ).encode("utf-8")
+            ).hexdigest()
+        )
         command_file = params.get("command_file") or _temp_file("agent_audio_tap_command.json")
         with open(command_file, "w") as handle:
             payload = {"id": command_id, "command": command, "path": path}
@@ -495,7 +510,9 @@ class AbletonLiveMCP(ControlSurface):
         device_name = str(params.get("device_name") or ("AgentM4L_%s_%s" % (role, device_slug)))
         command_file = str(params.get("command_file") or _temp_file("agent_m4l_%s.json" % instance_id))
         status_file = str(params.get("status_file") or _temp_file("agent_m4l_%s_status.json" % instance_id))
-        command = params.get("command") or ("set" if params.get("values") or params.get("parameters") else ("update" if params.get("patch") or params.get("spec") or params.get("webui") or params.get("webuis") else "status"))
+        command = params.get("command") or (
+            "set" if params.get("values") or params.get("parameters") else ("update" if params.get("patch") or params.get("spec") or params.get("webui") or params.get("webuis") else "status")
+        )
         patch = params.get("patch") or params.get("spec")
         if patch is None and (params.get("webui") or params.get("webuis")):
             patch = {}
@@ -1253,21 +1270,26 @@ class AbletonLiveMCP(ControlSurface):
             legacy_note_api = remove_notes_extended(0, 128, 0.0, float(getattr(clip, "length", 0.0))) or legacy_note_api
         clear_range = params.get("clear_range")
         if clear_range:
-            legacy_note_api = remove_notes_extended(
-                clear_range["from_pitch"],
-                clear_range["pitch_span"],
-                clear_range["from_time"],
-                clear_range["time_span"],
-            ) or legacy_note_api
+            legacy_note_api = (
+                remove_notes_extended(
+                    clear_range["from_pitch"],
+                    clear_range["pitch_span"],
+                    clear_range["from_time"],
+                    clear_range["time_span"],
+                )
+                or legacy_note_api
+            )
         specs = []
         for note in params.get("notes") or []:
-            specs.append(Live.Clip.MidiNoteSpecification(
-                pitch=int(note["pitch"]),
-                start_time=float(note["start_time"]),
-                duration=float(note["duration"]),
-                velocity=float(note["velocity"]),
-                mute=bool(note.get("mute", False)),
-            ))
+            specs.append(
+                Live.Clip.MidiNoteSpecification(
+                    pitch=int(note["pitch"]),
+                    start_time=float(note["start_time"]),
+                    duration=float(note["duration"]),
+                    velocity=float(note["velocity"]),
+                    mute=bool(note.get("mute", False)),
+                )
+            )
         if specs:
             clip.add_new_notes(tuple(specs))
         if params.get("fire") and hasattr(target, "fire"):
@@ -1686,16 +1708,14 @@ class AbletonLiveMCP(ControlSurface):
         if not candidates:
             raise KeyError(
                 "No loadable device named %r found under roots %s%s. Add its folder to Live's "
-                "browser (User Library, or Places > Add Folder) so Live indexes it, then retry."
-                % (name, list(roots), (" with path containing %r" % path_contains) if path_contains else "")
+                "browser (User Library, or Places > Add Folder) so Live indexes it, then retry." % (name, list(roots), (" with path containing %r" % path_contains) if path_contains else "")
             )
         if len(candidates) > 1:
             return {
                 "loaded": False,
                 "ambiguous": True,
                 "candidates": [result for _item, result in candidates],
-                "hint": "Multiple matches. Re-call with path_contains set to a unique path fragment "
-                        "(e.g. the worktree dir name), or use browser_load with one candidate's uri.",
+                "hint": "Multiple matches. Re-call with path_contains set to a unique path fragment (e.g. the worktree dir name), or use browser_load with one candidate's uri.",
             }
 
         item, item_result = candidates[0]
@@ -1768,7 +1788,10 @@ class AbletonLiveMCP(ControlSurface):
         compact = "".join(str(code or "").split())
         for name in LEGACY_NOTE_API_NAMES:
             if ("%s(" % name) in compact:
-                raise RuntimeError("Refusing obsolete MIDI note API %s in live_exec/live_eval; use live_clip_add_notes/live_clip_update_notes or pass allow_legacy_note_api only for disposable compatibility testing" % name)
+                raise RuntimeError(
+                    "Refusing obsolete MIDI note API %s in live_exec/live_eval; use live_clip_add_notes/live_clip_update_notes or pass allow_legacy_note_api only for disposable compatibility testing"
+                    % name
+                )
 
     def _rpc_observe(self, params):
         obj = self._resolve(params.get("ref"))

@@ -13,7 +13,6 @@ from typing import Any
 
 from ableton_paths import remote_scripts_dir
 
-
 DEFAULT_REMOTE_SCRIPT = "Ableton_Live_MCP"
 
 
