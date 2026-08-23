@@ -21,12 +21,14 @@ The test suite runs almost entirely against fake/in-memory bridges
 `tests/test_remote_bridge_fake_live.py`) — no Ableton Live installation is
 required for most of it.
 
-**Known gap on non-macOS/Windows runners:** 16 tests under `test_validate_*`
-exercise `ableton-live-mcp-validate`'s M4L-host check, which is gated to
+**Known gap on Linux:** 16 tests under `test_validate_*` exercise
+`ableton-live-mcp-validate`'s M4L-host check, which is gated to
 macOS/Windows (`agent_m4l_host_status`/`ableton_paths`) and fail on Linux
-independent of any code change. CI deselects them explicitly (see
-`.github/workflows/ci.yml`) rather than silently passing or silently
-failing — this is pre-existing, not something a given PR needs to fix.
+independent of any code change — pre-existing, not something a given PR
+needs to fix. CI's `test` job (Linux) deselects them explicitly (see
+`.github/workflows/ci.yml`); the separate `test-macos` job runs the full,
+undeselected suite on a real macOS runner so they're still covered
+somewhere.
 
 ## Linting
 

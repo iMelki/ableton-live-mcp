@@ -347,8 +347,10 @@ See `CONTRIBUTING.md` for the full dev workflow. Key things worth knowing:
   if you forget.
 - **16 tests under `test_validate_*` are expected to fail on Linux** — a
   pre-existing macOS/Windows-only M4L-host validation gate, unrelated to
-  most changes. CI deselects them explicitly; don't chase them down as a
-  regression unless you're actually working on `validate.py`/`agent_m4l.py`.
+  most changes. CI's Linux `test` job deselects them explicitly; the
+  `test-macos` job runs them for real on a macOS runner instead. Don't
+  chase Linux-only failures here down as a regression unless you're
+  actually working on `validate.py`/`agent_m4l.py`.
 - Changes to `Ableton_Live_MCP/bridge.py`'s actual Live Object Model calls
   or the Max for Live devices can't be fully verified without a real
   Ableton Live install — say so explicitly in a PR if you couldn't test

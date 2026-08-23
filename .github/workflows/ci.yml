@@ -46,6 +46,18 @@ jobs:
           for t in "${DESELECT[@]}"; do ARGS+=(--deselect "$t"); done
           python -m pytest "${ARGS[@]}"
 
+  # The 16 tests deselected above are macOS/Windows-only (see comment above); run
+  # the full, undeselected suite on a real macOS runner so they're still covered.
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest
+
   lint:
     runs-on: ubuntu-latest
     steps:
