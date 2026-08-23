@@ -5,7 +5,6 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Callable, TextIO
 
-
 Json = dict[str, Any]
 Handler = Callable[[Json], Any]
 

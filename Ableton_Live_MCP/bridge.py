@@ -1,7 +1,7 @@
 from __future__ import absolute_import, print_function
 
-import json
 import hashlib
+import json
 import os
 import socket
 import sys
@@ -11,7 +11,6 @@ import traceback
 
 import Live
 from _Framework.ControlSurface import ControlSurface
-
 
 HOST = "127.0.0.1"
 PORT = 8765

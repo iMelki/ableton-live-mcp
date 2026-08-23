@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import sys
 
-
 DEBUG_ENV_VAR = "ABLETON_LIVE_MCP_DEBUG"
 
 

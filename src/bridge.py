@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import select
 import socket
-import itertools
 import threading
 import time
 from dataclasses import dataclass

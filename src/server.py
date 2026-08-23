@@ -1,31 +1,38 @@
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import socket
 import time
 from pathlib import Path
 from typing import Any
 
-from bridge import AbletonBridgeClient, BridgeConfig
 from agent_m4l import (
     build_device,
-    command_file as agent_m4l_command_file,
-    device_name as agent_m4l_device_name,
     infer_device_bounds,
     normalize_role,
     slugify,
-    status_file as agent_m4l_status_file,
-    udp_port as agent_m4l_udp_port,
     write_webui,
     write_webui_asset_files,
     write_webui_assets,
 )
+from agent_m4l import (
+    command_file as agent_m4l_command_file,
+)
+from agent_m4l import (
+    device_name as agent_m4l_device_name,
+)
+from agent_m4l import (
+    status_file as agent_m4l_status_file,
+)
+from agent_m4l import (
+    udp_port as agent_m4l_udp_port,
+)
+from bridge import AbletonBridgeClient, BridgeConfig
 from mcp_stdio import StdioMcpServer, Tool
 from similar_sounds import find_similar_sounds
 from visual_capture import capture_ableton_window, capture_max_console_window
 from vocal_prep import prep_vocal_sample
-
 
 __version__ = "0.1.1"
 

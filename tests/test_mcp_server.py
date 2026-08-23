@@ -14,13 +14,15 @@ import server as server_module
 import validate
 from benchmark import run_benchmark
 from bridge import AbletonBridgeClient, AbletonBridgeError, BridgeConfig, effective_main_thread_timeout
-from install_remote_script import install_remote_script, main as install_remote_script_main, remote_script_root, remote_script_status
+from install_remote_script import install_remote_script, remote_script_root, remote_script_status
+from install_remote_script import main as install_remote_script_main
 from mcp_stdio import Tool
 from prompt_audit import run_generated_m4l_local_preflight, run_prompt_audit
 from server import agent_m4l_status_timeout, agent_m4l_status_timeout_reason, expected_agent_m4l_status_event, make_server, should_build_agent_m4l, summarize_agent_m4l_status, wait_agent_m4l_status
-from validate import main as validate_main
 from similar_sounds import encode_feature
-from smoke import main as smoke_main, run_core_regression, run_generated_m4l_regression, run_smoke
+from smoke import main as smoke_main
+from smoke import run_core_regression, run_generated_m4l_regression, run_smoke
+from validate import main as validate_main
 
 
 class FakeBridge:

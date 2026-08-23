@@ -14,7 +14,6 @@ from typing import Any
 
 from ableton_paths import state_dir
 
-
 ABLETON_BUNDLE_ID = "com.ableton.live"
 # The Max for Live console is a top-level window hosted inside Live's own
 # process (Max for Live embeds the Max runtime in Live), so it is owned by
@@ -247,10 +246,10 @@ def capture_window(window: WindowInfo, output: Path, backend: str = "auto") -> s
 def list_macos_displays() -> list[dict[str, Any]]:
     try:
         from Quartz import (
-            CGGetActiveDisplayList,
             CGDisplayBounds,
             CGDisplayPixelsHigh,
             CGDisplayPixelsWide,
+            CGGetActiveDisplayList,
             CGMainDisplayID,
         )
     except ImportError as exc:
@@ -380,8 +379,8 @@ def capture_macos_window_screencapture(window: WindowInfo, output: Path) -> None
 def capture_macos_window_quartz(window: WindowInfo, output: Path) -> None:
     try:
         from Quartz import (
-            CGWindowListCreateImage,
             CGRectNull,
+            CGWindowListCreateImage,
             kCGWindowImageBoundsIgnoreFraming,
             kCGWindowListOptionIncludingWindow,
         )

@@ -18,7 +18,6 @@ from bridge import AbletonBridgeClient, AbletonBridgeError
 from debug import require_debug_cli
 from server import preflight_agent_m4l
 
-
 Scenario = Callable[[AbletonBridgeClient], dict[str, Any]]
 
 

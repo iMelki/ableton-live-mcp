@@ -8,7 +8,6 @@ import struct
 from pathlib import Path
 from typing import Any
 
-
 DB_DIR_ENV_VARS = ("ABLETON_LIVE_DATABASE_DIR", "ABLETON_LIVE_DB_DIR")
 
 

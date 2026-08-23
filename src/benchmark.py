@@ -11,7 +11,6 @@ from typing import Any
 from bridge import AbletonBridgeClient, AbletonBridgeError
 from debug import require_debug_cli
 
-
 RequestFactory = Callable[[], tuple[str, dict[str, Any]]]
 
 
