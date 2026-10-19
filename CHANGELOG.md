@@ -4,6 +4,20 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this project does not
 yet follow semantic version tags.
 
+## [Unreleased]
+
+### Added
+- `src/recipe_check.py` (`python src/recipe_check.py --yes`): runs the documented
+  sidechain, chord-track, DJ crossfader/macro, external-instrument-routing and
+  Videosync-presence recipes against a *running* Ableton Live set, creating and
+  deleting throwaway `MCP Verify ...` tracks, and reports observed pass/fail/skip.
+  Unit-tested against a scripted fake bridge (logic and cleanup guarantees only;
+  Live's own behavior is what a real run checks).
+- `src/vocal_prep.py` is now runnable (`python src/vocal_prep.py take.wav --sweep`)
+  with a read-only silence-threshold sweep for tuning `silence_thresh_db` on real takes.
+- `AGENTS.md`: sidechain, DJ crossfader/macro, external-instrument and Videosync
+  recipes, explicitly marked unverified until `recipe_check.py` passes on a real Live.
+
 ## [0.1.2] - 2026-08-23
 
 ### Added

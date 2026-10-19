@@ -81,3 +81,47 @@ def test_prep_vocal_sample_requires_file_path():
 def test_prep_vocal_sample_rejects_missing_file(tmp_path):
     with pytest.raises(FileNotFoundError):
         prep_vocal_sample({"file_path": str(tmp_path / "missing.wav")})
+
+
+def test_threshold_sweep_reports_monotonic_trimming(tmp_path):
+    from vocal_prep import threshold_sweep
+
+    source = tmp_path / "take.wav"
+    make_wav(source, silence_ms=300, tone_ms=200)
+
+    result = threshold_sweep(str(source))
+
+    assert result["original_ms"] > 0
+    removed = [row["removed_ms"] for row in result["sweep"]]
+    assert removed == sorted(removed, reverse=True)  # stricter (lower) threshold never removes more
+    assert all(row["trimmed_ms"] + row["removed_ms"] == result["original_ms"] for row in result["sweep"])
+
+
+def test_cli_sweep_writes_nothing_and_prints_json(tmp_path, capsys):
+    import json
+
+    from vocal_prep import main
+
+    source = tmp_path / "take.wav"
+    make_wav(source)
+    before = sorted(p.name for p in tmp_path.iterdir())
+
+    assert main([str(source), "--sweep"]) == 0
+
+    assert sorted(p.name for p in tmp_path.iterdir()) == before
+    assert json.loads(capsys.readouterr().out)["sweep"]
+
+
+def test_cli_trims_without_transcribing_by_default(tmp_path, capsys):
+    import json
+
+    from vocal_prep import main
+
+    source = tmp_path / "take.wav"
+    make_wav(source)
+
+    assert main([str(source)]) == 0
+
+    out = json.loads(capsys.readouterr().out)
+    assert "transcript" not in out
+    assert Path(out["trimmed_path"]).exists()
