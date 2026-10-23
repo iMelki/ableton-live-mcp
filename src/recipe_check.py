@@ -4,9 +4,12 @@ Usage (Live running with the Ableton_Live_MCP control surface selected):
 
     python src/recipe_check.py --yes
 
-This creates throwaway tracks named "MCP Verify ..." in the open Live Set and
-deletes them at the end. Use a blank/disposable set; back up anything you care
-about first (the MCP can edit your set directly).
+This creates throwaway tracks named "MCP Verify <random token> ..." in the open
+Live Set and, at the end, deletes only tracks carrying that exact token. Tracks
+you already have (even ones named "MCP Verify ...") are never touched; if a run
+is interrupted, its leftover tracks are listed by `run_prefix` and can be deleted
+by hand. Still, use a blank/disposable set and back up anything you care about
+first (the MCP can edit your set directly).
 
 Each step prints pass/fail/skip plus the raw details Live returned, so the
 answer to "does this recipe really work on my Live version?" is observed, not
@@ -18,11 +21,18 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import uuid
 from typing import Any
 
 from bridge import AbletonBridgeClient
 
 TRACK_PREFIX = "MCP Verify"
+
+
+def new_run_prefix() -> str:
+    """Unique per run, so cleanup can only ever match tracks this run created."""
+    return "%s %s" % (TRACK_PREFIX, uuid.uuid4().hex[:8])
+
 
 CREATE_TRACKS_CODE = """
 names = {names!r}
@@ -64,7 +74,7 @@ result = {{
 CLEANUP_CODE = """
 removed = 0
 for i in range(len(song.tracks) - 1, -1, -1):
-    if song.tracks[i].name.startswith({prefix!r}):
+    if song.tracks[i].name.startswith({prefix!r} + " "):
         song.delete_track(i)
         removed += 1
 result = {{"removed": removed, "tracks_remaining": len(song.tracks)}}
@@ -95,13 +105,13 @@ def _create_tracks(client: Any, names: list[str]) -> list[int]:
     return [int(item["index"]) for item in created]
 
 
-def check_ping(client: Any) -> dict[str, Any]:
+def check_ping(client: Any, prefix: str) -> dict[str, Any]:
     result = client.request("ping", {})
     return _step("ping", "pass", result)
 
 
-def check_sidechain(client: Any) -> dict[str, Any]:
-    kick, bass = _create_tracks(client, [f"{TRACK_PREFIX} Kick", f"{TRACK_PREFIX} Bass"])
+def check_sidechain(client: Any, prefix: str) -> dict[str, Any]:
+    kick, bass = _create_tracks(client, [f"{prefix} Kick", f"{prefix} Bass"])
     inserted = client.request("track_insert_device", {"ref": {"path": f"live_set tracks {bass}"}, "device_name": "Compressor"})
     if not inserted.get("inserted"):
         return _step("sidechain", "fail", {"reason": "Compressor was not inserted", "result": inserted})
@@ -115,15 +125,15 @@ def check_sidechain(client: Any) -> dict[str, Any]:
     detail["sidechain_enabled"] = True
     routing = client.request("exec", {"code": COMPRESSOR_ROUTING_CODE.format(index=bass, device_index=0)})
     detail["routing"] = routing
-    wanted = f"{TRACK_PREFIX} Kick"
+    wanted = f"{prefix} Kick"
     if any(wanted in str(name) for name in routing.get("available_input_routing_types", [])):
         detail["kick_selectable_as_sidechain_source"] = True
         return _step("sidechain", "pass", detail)
     return _step("sidechain", "partial", {**detail, "note": "S/C toggled, but the source track was not offered as a routing type; routing step needs a different LOM path on this Live version"})
 
 
-def check_chord_track(client: Any) -> dict[str, Any]:
-    melody, chords = _create_tracks(client, [f"{TRACK_PREFIX} Melody", f"{TRACK_PREFIX} Chords"])
+def check_chord_track(client: Any, prefix: str) -> dict[str, Any]:
+    melody, chords = _create_tracks(client, [f"{prefix} Melody", f"{prefix} Chords"])
     for index in (melody, chords):
         client.request("exec", {"code": CREATE_CLIP_CODE.format(index=index, length=4.0)})
     melody_ref = {"path": f"live_set tracks {melody} clip_slots 0 clip"}
@@ -141,8 +151,8 @@ def check_chord_track(client: Any) -> dict[str, Any]:
     return _step("chord_track", status, {"melody_notes": len(read_back), "chord_notes_written": len(chord_notes), "chord_notes_read": len(chord_read)})
 
 
-def check_dj_crossfade(client: Any) -> dict[str, Any]:
-    (track,) = _create_tracks(client, [f"{TRACK_PREFIX} DJ"])
+def check_dj_crossfade(client: Any, prefix: str) -> dict[str, Any]:
+    (track,) = _create_tracks(client, [f"{prefix} DJ"])
     mixer = {"path": f"live_set tracks {track} mixer_device"}
     original = client.request("get", {"ref": mixer, "properties": ["crossfade_assign"]})
     observed: dict[str, Any] = {}
@@ -159,8 +169,8 @@ def check_dj_crossfade(client: Any) -> dict[str, Any]:
     return _step("dj_crossfade_and_macros", "pass" if observed else "fail", detail)
 
 
-def check_external_instrument_routing(client: Any) -> dict[str, Any]:
-    (track,) = _create_tracks(client, [f"{TRACK_PREFIX} External"])
+def check_external_instrument_routing(client: Any, prefix: str) -> dict[str, Any]:
+    (track,) = _create_tracks(client, [f"{prefix} External"])
     routing = client.request("exec", {"code": ROUTING_CODE.format(index=track)})
     inserted = client.request("track_insert_device", {"ref": {"path": f"live_set tracks {track}"}, "device_name": "External Instrument"})
     detail: dict[str, Any] = {"routing": routing, "external_instrument_inserted": bool(inserted.get("inserted"))}
@@ -170,7 +180,7 @@ def check_external_instrument_routing(client: Any) -> dict[str, Any]:
     return _step("external_instrument_routing", "pass" if routing.get("output_types") else "fail", detail)
 
 
-def check_videosync_probe(client: Any) -> dict[str, Any]:
+def check_videosync_probe(client: Any, prefix: str) -> dict[str, Any]:
     result = client.request("browser_search", {"query": "Videosync", "limit": 5})
     matches = _entries(result)
     if not matches:
@@ -188,21 +198,22 @@ CHECKS = [
 ]
 
 
-def run_recipe_checks(client: Any) -> tuple[int, dict[str, Any]]:
+def run_recipe_checks(client: Any, prefix: str | None = None) -> tuple[int, dict[str, Any]]:
+    prefix = prefix or new_run_prefix()
     steps: list[dict[str, Any]] = []
     try:
         for check in CHECKS:
             try:
-                steps.append(check(client))
+                steps.append(check(client, prefix))
             except Exception as exc:  # report and continue; one failing recipe shouldn't hide the others
                 steps.append(_step(check.__name__.removeprefix("check_"), "fail", {"error": str(exc)}))
     finally:
         try:
-            cleanup = client.request("exec", {"code": CLEANUP_CODE.format(prefix=TRACK_PREFIX)})
+            cleanup = client.request("exec", {"code": CLEANUP_CODE.format(prefix=prefix)})
         except Exception as exc:
-            cleanup = {"error": str(exc), "note": f"delete any tracks named '{TRACK_PREFIX} ...' manually"}
+            cleanup = {"error": str(exc), "note": f"delete any tracks named '{prefix} ...' manually"}
     failed = [step["name"] for step in steps if step["status"] == "fail"]
-    summary = {"ok": not failed, "failed": failed, "steps": steps, "cleanup": cleanup}
+    summary = {"ok": not failed, "run_prefix": prefix, "failed": failed, "steps": steps, "cleanup": cleanup}
     return (0 if not failed else 1), summary
 
 

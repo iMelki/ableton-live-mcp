@@ -9,8 +9,8 @@ yet follow semantic version tags.
 ### Added
 - `src/recipe_check.py` (`python src/recipe_check.py --yes`): runs the documented
   sidechain, chord-track, DJ crossfader/macro, external-instrument-routing and
-  Videosync-presence recipes against a *running* Ableton Live set, creating and
-  deleting throwaway `MCP Verify ...` tracks, and reports observed pass/fail/skip.
+  Videosync-presence recipes against a *running* Ableton Live set, creating
+  throwaway `MCP Verify <token> ...` tracks and deleting only those, and reports observed pass/fail/skip.
   Unit-tested against a scripted fake bridge (logic and cleanup guarantees only;
   Live's own behavior is what a real run checks).
 - `src/vocal_prep.py` is now runnable (`python src/vocal_prep.py take.wav --sweep`)

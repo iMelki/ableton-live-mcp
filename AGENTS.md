@@ -393,8 +393,8 @@ individually, not something to fold into an unrelated change.
 
 These recipes are composed from existing generic tools and were *not* tested
 against a real Ableton Live by whoever wrote them. Run
-`python src/recipe_check.py --yes` with Live open (use a disposable set — it
-creates and deletes throwaway tracks named `MCP Verify ...`) and it prints,
+`python src/recipe_check.py --yes` with Live open (use a disposable set: it
+creates and deletes throwaway tracks named `MCP Verify <token> ...`) and it prints,
 per recipe, pass/fail/skip plus the raw values your Live returned. If a step
 fails or reports `partial`, fix the recipe text below to match what your Live
 actually does rather than trusting this text.
@@ -409,7 +409,7 @@ actually does rather than trusting this text.
   routing property path is the least certain part and varies by Live version.
 - **DJ crossfader / performance macros:** `live_set` with ref
   `{"path": "live_set tracks N mixer_device"}`, property `crossfade_assign`.
-  The numeric meaning of the values is not assumed here — the check sets
+  The numeric meaning of the values is not assumed here: the check sets
   0, 1, 2 and reports what Live reads back. A macro is an ordinary
   `DeviceParameter` (`Macro 1`...) on an Audio Effect Rack, reachable with
   `live_device_parameters` + `live_parameter_set`; mapping a macro onto nested
