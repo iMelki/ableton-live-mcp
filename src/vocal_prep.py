@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+import json
 from pathlib import Path
 from typing import Any, Callable
 
@@ -72,3 +74,42 @@ def prep_vocal_sample(params: dict[str, Any] | None = None, transcribe_fn: Trans
         result["segments"] = transcription.get("segments", [])
 
     return result
+
+
+def threshold_sweep(file_path: str, thresholds: tuple[float, ...] = (-30.0, -35.0, -40.0, -45.0, -50.0, -55.0, -60.0)) -> dict[str, Any]:
+    """Show how much silence each `silence_thresh_db` removes from a real take, to help pick a default."""
+    from pydub import AudioSegment
+
+    source = Path(file_path)
+    if not source.is_file():
+        raise FileNotFoundError("No such audio file: %s" % source)
+    segment = AudioSegment.from_file(source)
+    rows = []
+    for threshold in thresholds:
+        trimmed = trim_silence(segment, silence_thresh_db=threshold)
+        rows.append({"silence_thresh_db": threshold, "trimmed_ms": len(trimmed), "removed_ms": len(segment) - len(trimmed)})
+    return {"source": str(source), "original_ms": len(segment), "sweep": rows}
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Trim silence from (and optionally transcribe) a vocal sample.")
+    parser.add_argument("file", help="Path to the audio file (WAV works everywhere; other formats need ffmpeg).")
+    parser.add_argument("--sweep", action="store_true", help="Only report how much each silence threshold would trim; writes nothing.")
+    parser.add_argument("--silence-thresh-db", type=float, default=-40.0)
+    parser.add_argument("--output-dir")
+    parser.add_argument("--transcribe", action="store_true", help="Also transcribe (needs the 'vocals' extra: pip install -e '.[vocals]').")
+    parser.add_argument("--model", default="base", help="faster-whisper model size, e.g. tiny/base/small.")
+    args = parser.parse_args(argv)
+    if args.sweep:
+        result = threshold_sweep(args.file)
+    else:
+        params: dict[str, Any] = {"file_path": args.file, "silence_thresh_db": args.silence_thresh_db, "transcribe": args.transcribe, "model": args.model}
+        if args.output_dir:
+            params["output_dir"] = args.output_dir
+        result = prep_vocal_sample(params)
+    print(json.dumps(result, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

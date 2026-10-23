@@ -6,6 +6,11 @@ Research notes on the six unimplemented feature concepts listed in the README's
 feasibility/complexity assessment, an implementation sketch, and open
 questions.
 
+> **Status update:** nothing in this document has been run against a real Ableton Live or real hardware.
+> `python src/recipe_check.py --yes` (see `AGENTS.md`) now exercises the sidechain, chord-track, DJ crossfader/macro,
+> external-instrument-routing and Videosync-presence recipes on a real Live set and reports observed results.
+> Treat the feasibility claims below as hypotheses until that has been run.
+
 GitHub Issues are disabled on this repository, so these were written here
 instead of filed as issues.
 
