@@ -313,13 +313,18 @@ Generated hosts also expose a hidden Live parameter used only to try to wake the
 
 Trimming (`pydub`) has no external dependency beyond the `vocals`/`dev`
 extra. Transcription (`faster-whisper`, only imported if `transcribe` isn't
-explicitly `False`) downloads its model from Hugging Face Hub on first use
-per `model` size (default `"base"`) and caches it locally (`~/.cache/huggingface`
-by default, or wherever `HF_HOME`/`HUGGINGFACE_HUB_CACHE` point) — this
-means the *first* call with a given model size needs network access and
-takes noticeably longer than subsequent calls. For an offline environment,
-pre-fetch the model once with network access before relying on this tool,
-or pass `"transcribe": false` to only trim.
+explicitly `False`) needs its model from Hugging Face Hub, cached locally
+(`~/.cache/huggingface` by default, or wherever `HF_HOME`/`HUGGINGFACE_HUB_CACHE`
+point). The tool never downloads implicitly: if the `model` size (default
+`"base"`) isn't cached it fails fast with an error naming the fix, instead of
+blocking an MCP call for minutes. Fetch once with network access:
+
+```sh
+python src/vocal_prep.py --fetch-model base
+```
+
+or pass `"allow_download": true` for a one-off download inside the call. For
+offline use, pre-fetch, or pass `"transcribe": false` to only trim.
 
 ## Composing a chord track for an existing melody
 
