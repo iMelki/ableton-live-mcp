@@ -35,7 +35,7 @@ def fetch_model(model_size: str = "base", local_files_only: bool = False) -> str
             raise
         raise ModelNotCachedError(
             "faster-whisper model %r is not cached locally, and downloading it can take minutes. "
-            "Fetch it once with `python src/vocal_prep.py --fetch-model %s`, "
+            "Fetch it once with `python src/vocal_prep.py --fetch-model --model %s`, "
             'or pass "allow_download": true, or pass "transcribe": false to only trim.' % (model_size, model_size)
         ) from exc
 

@@ -320,7 +320,7 @@ point). The tool never downloads implicitly: if the `model` size (default
 blocking an MCP call for minutes. Fetch once with network access:
 
 ```sh
-python src/vocal_prep.py --fetch-model base
+python src/vocal_prep.py --fetch-model --model base   # --model picks the size
 ```
 
 or pass `"allow_download": true` for a one-off download inside the call. For

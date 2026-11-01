@@ -163,7 +163,7 @@ def test_transcribe_fails_fast_when_model_not_cached(tmp_path, monkeypatch):
     calls: list = []
     _install_fake_faster_whisper(monkeypatch, calls, cached=False)
 
-    with pytest.raises(ModelNotCachedError, match="--fetch-model base"):
+    with pytest.raises(ModelNotCachedError, match="--fetch-model --model base"):
         prep_vocal_sample({"file_path": str(source)})
     assert calls == [("base", True)]
 
