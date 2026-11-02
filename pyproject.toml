@@ -18,6 +18,7 @@ dev = [
     "ruff>=0.15",
     "Pillow>=10",
     "pydub>=0.25",
+    "numpy>=1.24",
     "pyobjc-framework-Quartz; platform_system == 'Darwin'",
     "pyobjc-framework-ScreenCaptureKit; platform_system == 'Darwin'",
     "windows-capture>=2.0; platform_system == 'Windows'",
@@ -29,6 +30,7 @@ visual = [
     "pyobjc-framework-ScreenCaptureKit; platform_system == 'Darwin'",
     "windows-capture>=2.0; platform_system == 'Windows'",
 ]
+analysis = ["numpy>=1.24"]
 vocals = ["pydub>=0.25", "faster-whisper>=1.0"]
 
 [project.scripts]

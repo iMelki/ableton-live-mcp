@@ -326,6 +326,26 @@ python src/vocal_prep.py --fetch-model --model base   # --model picks the size
 or pass `"allow_download": true` for a one-off download inside the call. For
 offline use, pre-fetch, or pass `"transcribe": false` to only trim.
 
+## Diagnosing frequency masking ("why is my mix muddy?")
+
+No dedicated MCP tool (the tool list is size-budgeted); use the offline helper on
+`live_agent_audio_tap` captures. Capture each suspect track on its own (solo it and
+verify, per the AgentAudioTap notes above), then:
+
+```sh
+pip install -e ".[analysis]"   # numpy; already in the dev extra
+python src/mix_analysis.py bass.wav pad.wav keys.wav
+```
+
+It reports each track's energy share per band (sub/bass/low_mid/mud/mid/high_mid/presence/air),
+a `mud_share` (250-500 Hz), the most crowded band, and track pairs ranked by spectral
+`overlap` with their `shared_bands`. Treat it as an assistive heuristic, not a verdict: it
+compares band-energy distributions of rendered audio and says nothing about arrangement or
+whether a clash is intentional. Apply the fix with existing tools (EQ Eight cut via
+`live_device_parameters`/`live_parameter_set`, or the sidechain recipe above). Not yet run
+against real AgentAudioTap output; tests use synthetic sine WAVs, and only PCM 16/24/32-bit
+WAV is read.
+
 ## Composing a chord track for an existing melody
 
 No dedicated tool for this — it doesn't need one. Read the melody with
