@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Callable
 
@@ -44,9 +45,17 @@ def _default_transcriber(model_size: str, allow_download: bool = False) -> Trans
     def transcribe(path: Path) -> dict[str, Any]:
         from faster_whisper import WhisperModel
 
-        model = WhisperModel(fetch_model(model_size, local_files_only=not allow_download))
-        segments, info = model.transcribe(str(path))
-        segments = list(segments)
+        model_path = fetch_model(model_size, local_files_only=not allow_download)
+        try:
+            segments, info = WhisperModel(model_path).transcribe(str(path))
+            segments = list(segments)
+        except RuntimeError as exc:
+            # faster-whisper auto-selects CUDA when a GPU is present, but fails here when the CUDA
+            # runtime (e.g. cuBLAS) isn't installed. Retry on CPU rather than failing the tool.
+            if not any(hint in str(exc).lower() for hint in ("cublas", "cudnn", "cuda")):
+                raise
+            segments, info = WhisperModel(model_path, device="cpu", compute_type="int8").transcribe(str(path))
+            segments = list(segments)
         return {
             "text": "".join(segment.text for segment in segments).strip(),
             "language": info.language,
@@ -134,7 +143,11 @@ def main(argv: list[str] | None = None) -> int:
         params: dict[str, Any] = {"file_path": args.file, "silence_thresh_db": args.silence_thresh_db, "transcribe": args.transcribe, "model": args.model, "allow_download": args.allow_download}
         if args.output_dir:
             params["output_dir"] = args.output_dir
-        result = prep_vocal_sample(params)
+        try:
+            result = prep_vocal_sample(params)
+        except ModelNotCachedError as exc:
+            print("error: %s" % exc, file=sys.stderr)
+            return 1
     print(json.dumps(result, indent=2))
     return 0
 

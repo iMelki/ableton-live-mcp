@@ -18,7 +18,8 @@ yet follow semantic version tags.
 - `live_prep_vocal_sample` no longer silently blocks on a first-use faster-whisper
   model download: if the model isn't cached it raises an error naming the fix
   (`python src/vocal_prep.py --fetch-model --model base`, or `"allow_download": true`).
-  New `--fetch-model` / `--allow-download` CLI flags.
+  New `--fetch-model` / `--allow-download` CLI flags. Transcription retries on CPU (int8)
+  when faster-whisper auto-picks CUDA but the CUDA runtime (cuBLAS) is missing.
 - `src/mix_analysis.py` (`python src/mix_analysis.py a.wav b.wav`): offline
   frequency-masking report for captured stems (per-band energy share, "mud" share,
   most crowded band, track pairs ranked by spectral overlap). Needs the new `analysis`
