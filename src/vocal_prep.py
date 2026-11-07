@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Callable
 
@@ -19,14 +20,42 @@ def trim_silence(segment: Any, silence_thresh_db: float = -40.0, chunk_size_ms: 
     return segment[start_trim : duration - end_trim]
 
 
-def _default_transcriber(model_size: str) -> TranscribeFn:
+class ModelNotCachedError(RuntimeError):
+    """The faster-whisper model isn't cached locally and downloading wasn't allowed."""
+
+
+def fetch_model(model_size: str = "base", local_files_only: bool = False) -> str:
+    """Download (or locate, with `local_files_only`) a faster-whisper model; returns its local directory."""
+    # Requires the optional `vocals` extra (`pip install ableton-live-mcp[vocals]`).
+    from faster_whisper.utils import download_model
+
+    try:
+        return download_model(model_size, local_files_only=local_files_only)
+    except Exception as exc:
+        if not local_files_only:
+            raise
+        raise ModelNotCachedError(
+            "faster-whisper model %r is not cached locally, and downloading it can take minutes. "
+            "Fetch it once with `python src/vocal_prep.py --fetch-model --model %s`, "
+            'or pass "allow_download": true, or pass "transcribe": false to only trim.' % (model_size, model_size)
+        ) from exc
+
+
+def _default_transcriber(model_size: str, allow_download: bool = False) -> TranscribeFn:
     def transcribe(path: Path) -> dict[str, Any]:
-        # Requires the optional `vocals` extra (`pip install ableton-live-mcp[vocals]`).
         from faster_whisper import WhisperModel
 
-        model = WhisperModel(model_size)
-        segments, info = model.transcribe(str(path))
-        segments = list(segments)
+        model_path = fetch_model(model_size, local_files_only=not allow_download)
+        try:
+            segments, info = WhisperModel(model_path).transcribe(str(path))
+            segments = list(segments)
+        except RuntimeError as exc:
+            # faster-whisper auto-selects CUDA when a GPU is present, but fails here when the CUDA
+            # runtime (e.g. cuBLAS) isn't installed. Retry on CPU rather than failing the tool.
+            if not any(hint in str(exc).lower() for hint in ("cublas", "cudnn", "cuda")):
+                raise
+            segments, info = WhisperModel(model_path, device="cpu", compute_type="int8").transcribe(str(path))
+            segments = list(segments)
         return {
             "text": "".join(segment.text for segment in segments).strip(),
             "language": info.language,
@@ -67,7 +96,7 @@ def prep_vocal_sample(params: dict[str, Any] | None = None, transcribe_fn: Trans
     }
 
     if params.get("transcribe", True):
-        transcribe = transcribe_fn or _default_transcriber(str(params.get("model", "base")))
+        transcribe = transcribe_fn or _default_transcriber(str(params.get("model", "base")), bool(params.get("allow_download", False)))
         transcription = transcribe(trimmed_path)
         result["transcript"] = transcription.get("text", "")
         result["language"] = transcription.get("language")
@@ -93,20 +122,32 @@ def threshold_sweep(file_path: str, thresholds: tuple[float, ...] = (-30.0, -35.
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Trim silence from (and optionally transcribe) a vocal sample.")
-    parser.add_argument("file", help="Path to the audio file (WAV works everywhere; other formats need ffmpeg).")
+    parser.add_argument("file", nargs="?", help="Path to the audio file (WAV works everywhere; other formats need ffmpeg).")
+    parser.add_argument("--fetch-model", action="store_true", help="Download the --model faster-whisper model once (needs network), then exit; FILE is ignored.")
+    parser.add_argument("--allow-download", action="store_true", help="With --transcribe, download the model if it isn't cached yet.")
     parser.add_argument("--sweep", action="store_true", help="Only report how much each silence threshold would trim; writes nothing.")
     parser.add_argument("--silence-thresh-db", type=float, default=-40.0)
     parser.add_argument("--output-dir")
     parser.add_argument("--transcribe", action="store_true", help="Also transcribe (needs the 'vocals' extra: pip install -e '.[vocals]').")
     parser.add_argument("--model", default="base", help="faster-whisper model size, e.g. tiny/base/small.")
     args = parser.parse_args(argv)
+    if args.fetch_model:
+        result = {"model": args.model, "path": fetch_model(args.model)}
+        print(json.dumps(result, indent=2))
+        return 0
+    if not args.file:
+        parser.error("file is required unless --fetch-model is given")
     if args.sweep:
         result = threshold_sweep(args.file)
     else:
-        params: dict[str, Any] = {"file_path": args.file, "silence_thresh_db": args.silence_thresh_db, "transcribe": args.transcribe, "model": args.model}
+        params: dict[str, Any] = {"file_path": args.file, "silence_thresh_db": args.silence_thresh_db, "transcribe": args.transcribe, "model": args.model, "allow_download": args.allow_download}
         if args.output_dir:
             params["output_dir"] = args.output_dir
-        result = prep_vocal_sample(params)
+        try:
+            result = prep_vocal_sample(params)
+        except ModelNotCachedError as exc:
+            print("error: %s" % exc, file=sys.stderr)
+            return 1
     print(json.dumps(result, indent=2))
     return 0
 

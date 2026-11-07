@@ -817,6 +817,7 @@ def make_server(client: AbletonBridgeClient | None = None) -> StdioMcpServer:
                     "silence_thresh_db": {"type": "number"},
                     "transcribe": {"type": "boolean"},
                     "model": {"type": "string", "description": "faster-whisper model size, e.g. tiny/base/small."},
+                    "allow_download": {"type": "boolean", "description": "Download uncached model (slow)."},
                 },
                 ["file_path"],
             ),
