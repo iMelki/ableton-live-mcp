@@ -343,8 +343,8 @@ a `mud_share` (250-500 Hz), the most crowded band, and track pairs ranked by spe
 compares band-energy distributions of rendered audio and says nothing about arrangement or
 whether a clash is intentional. Apply the fix with existing tools (EQ Eight cut via
 `live_device_parameters`/`live_parameter_set`, or the sidechain recipe above). Not yet run
-against real AgentAudioTap output; tests use synthetic sine WAVs, and only PCM 16/24/32-bit
-WAV is read.
+against real AgentAudioTap output; tests use synthetic sine WAVs, and PCM 16/24/32-bit plus float 32/64-bit
+WAV are read.
 
 ## Composing a chord track for an existing melody
 

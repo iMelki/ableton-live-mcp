@@ -68,15 +68,54 @@ def test_reads_24_bit_and_stereo(tmp_path):
     assert abs(samples).max() == pytest.approx(0.4, abs=0.01)
 
 
-def test_rejects_float_wav_width(tmp_path):
+def write_float_wav(path: Path, signal, bits: int = 32, extensible: bool = False, data_size: int | None = None) -> None:
+    import struct
+
+    raw = np.asarray(signal, dtype="<f%d" % (bits // 8)).tobytes()
+    block = bits // 8
+    if extensible:
+        fmt = struct.pack("<HHIIHHHHIH14s", 0xFFFE, 1, RATE, RATE * block, block, bits, 22, bits, 4, 3, b"\x00\x00\x00\x00\x10\x00\x80\x00\x00\xaa\x00\x38\x9b\x71")
+    else:
+        fmt = struct.pack("<HHIIHH", 3, 1, RATE, RATE * block, block, bits)
+    size = len(raw) if data_size is None else data_size
+    body = b"WAVE" + b"fmt " + struct.pack("<I", len(fmt)) + fmt + b"data" + struct.pack("<I", size) + raw
+    path.write_bytes(b"RIFF" + struct.pack("<I", len(body)) + body)
+
+
+@pytest.mark.parametrize("bits,extensible", [(32, False), (64, False), (32, True)])
+def test_reads_float_wavs(tmp_path, bits, extensible):
+    write_float_wav(tmp_path / "f.wav", sine(1000), bits=bits, extensible=extensible)
+
+    samples, rate = read_wav_mono(tmp_path / "f.wav")
+
+    assert rate == RATE
+    assert len(samples) == RATE
+    assert abs(samples).max() == pytest.approx(0.4, abs=0.001)
+
+
+def test_reads_unfinalized_capture_with_oversized_data_chunk(tmp_path):
+    write_float_wav(tmp_path / "live.wav", sine(1000), data_size=0xFFFFFFFF)
+
+    samples, _ = read_wav_mono(tmp_path / "live.wav")
+
+    assert len(samples) == RATE
+
+
+def test_rejects_unsupported_format(tmp_path):
     path = tmp_path / "bad.wav"
     with wave.open(str(path), "wb") as handle:
         handle.setnchannels(1)
         handle.setsampwidth(1)
         handle.setframerate(RATE)
         handle.writeframes(b"\x80" * 100)
-    with pytest.raises(ValueError, match="Unsupported WAV sample width"):
+    with pytest.raises(ValueError, match="Unsupported WAV format"):
         read_wav_mono(path)
+
+
+def test_rejects_non_wav(tmp_path):
+    (tmp_path / "x.wav").write_bytes(b"not a wav file at all")
+    with pytest.raises(ValueError, match="Not a RIFF/WAVE"):
+        read_wav_mono(tmp_path / "x.wav")
 
 
 def test_silent_track_does_not_divide_by_zero(tmp_path):
@@ -86,6 +125,14 @@ def test_silent_track_does_not_divide_by_zero(tmp_path):
     result = analyze_masking([str(tmp_path / "silent.wav"), str(tmp_path / "tone.wav")])
 
     assert result["pairs_by_overlap"][0]["overlap"] == 0.0
+    assert result["tracks"]["silent"]["dominant_band"] is None
+    assert result["tracks"]["tone"]["dominant_band"] == "mid"
+
+
+def test_all_silent_input_has_no_crowded_band(tmp_path):
+    write_wav(tmp_path / "a.wav", np.zeros(RATE))
+
+    assert analyze_masking([str(tmp_path / "a.wav")])["crowded_band"] is None
 
 
 def test_cli_prints_json(tmp_path, capsys):

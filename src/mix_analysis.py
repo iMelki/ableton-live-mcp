@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import itertools
 import json
-import wave
 from pathlib import Path
 from typing import Any
 
@@ -22,24 +21,54 @@ BANDS_NAMES = tuple(name for name, _, _ in BANDS)
 FFT_SIZE = 4096
 
 
+def _parse_wav(blob: bytes) -> tuple[int, int, int, int, bytes]:
+    """Return (format_tag, channels, rate, bits, data) from a RIFF/WAVE blob.
+
+    Hand-rolled because stdlib `wave` rejects IEEE-float WAVs, which DAWs commonly write, and
+    because an unfinalized capture can carry a data size larger than the bytes actually on disk.
+    """
+    import struct
+
+    if blob[:4] != b"RIFF" or blob[8:12] != b"WAVE":
+        raise ValueError("Not a RIFF/WAVE file")
+    fmt: tuple[int, int, int, int] | None = None
+    pos = 12
+    while pos + 8 <= len(blob):
+        chunk_id, size = blob[pos : pos + 4], struct.unpack("<I", blob[pos + 4 : pos + 8])[0]
+        body = pos + 8
+        if chunk_id == b"fmt ":
+            tag, channels, rate, _, _, bits = struct.unpack("<HHIIHH", blob[body : body + 16])
+            if tag == 0xFFFE and size >= 26:  # WAVE_FORMAT_EXTENSIBLE: real tag leads the sub-format GUID
+                tag = struct.unpack("<H", blob[body + 24 : body + 26])[0]
+            fmt = (tag, channels, rate, bits)
+        elif chunk_id == b"data":
+            if fmt is None:
+                raise ValueError("WAV data chunk before fmt chunk")
+            end = len(blob) if size in (0, 0xFFFFFFFF) else min(body + size, len(blob))
+            return (*fmt, blob[body:end])
+        pos = body + size + (size & 1)
+    raise ValueError("WAV file has no data chunk")
+
+
 def read_wav_mono(path: str | Path) -> tuple[Any, int]:
-    """Read a PCM WAV (16/24/32-bit) as a mono float array in [-1, 1] plus its sample rate."""
+    """Read a PCM (16/24/32-bit) or IEEE-float (32/64-bit) WAV as a mono float array in [-1, 1] plus its sample rate."""
     import numpy as np
 
-    with wave.open(str(path), "rb") as handle:
-        channels, width, rate, frames = handle.getnchannels(), handle.getsampwidth(), handle.getframerate(), handle.getnframes()
-        raw = handle.readframes(frames)
-    if width == 2:
-        data = np.frombuffer(raw, dtype="<i2").astype(np.float64) / 32768.0
-    elif width == 3:
-        packed = np.frombuffer(raw, dtype=np.uint8).reshape(-1, 3)
+    tag, channels, rate, bits, raw = _parse_wav(Path(path).read_bytes())
+    width = bits // 8
+    if tag == 1 and width == 2:
+        data = np.frombuffer(raw[: len(raw) // 2 * 2], dtype="<i2").astype(np.float64) / 32768.0
+    elif tag == 1 and width == 3:
+        packed = np.frombuffer(raw[: len(raw) // 3 * 3], dtype=np.uint8).reshape(-1, 3)
         ints = packed[:, 0].astype(np.int32) | (packed[:, 1].astype(np.int32) << 8) | (packed[:, 2].astype(np.int32) << 16)
         ints = np.where(ints & 0x800000, ints - 0x1000000, ints)
         data = ints.astype(np.float64) / 8388608.0
-    elif width == 4:
-        data = np.frombuffer(raw, dtype="<i4").astype(np.float64) / 2147483648.0
+    elif tag == 1 and width == 4:
+        data = np.frombuffer(raw[: len(raw) // 4 * 4], dtype="<i4").astype(np.float64) / 2147483648.0
+    elif tag == 3 and width in (4, 8):
+        data = np.frombuffer(raw[: len(raw) // width * width], dtype="<f%d" % width).astype(np.float64)
     else:
-        raise ValueError("Unsupported WAV sample width: %d bytes (need 16/24/32-bit PCM; float WAV is not supported)" % width)
+        raise ValueError("Unsupported WAV format: tag %d, %d-bit (need 16/24/32-bit PCM or 32/64-bit float)" % (tag, bits))
     if channels > 1:
         data = data[: len(data) // channels * channels].reshape(-1, channels).mean(axis=1)
     return data, rate
@@ -71,6 +100,12 @@ def _shares(energies: dict[str, float]) -> dict[str, float]:
     return {name: value / total for name, value in energies.items()}
 
 
+def _peak_band(shares: dict[str, float]) -> str | None:
+    """Band with the largest share, or None when there is no energy at all (silent capture)."""
+    best = max(shares, key=lambda band: shares[band])
+    return best if shares[best] > 0 else None
+
+
 def analyze_masking(paths: list[str], min_band_share: float = 0.15) -> dict[str, Any]:
     """Compare band-energy distributions of captured stems and report where they pile up.
 
@@ -90,7 +125,7 @@ def analyze_masking(paths: list[str], min_band_share: float = 0.15) -> dict[str,
 
     summary = {
         name: {
-            "dominant_band": max(shares, key=lambda band: shares[band]),
+            "dominant_band": _peak_band(shares),
             "mud_share": round(shares["mud"], 3),
             "band_share": {band: round(value, 3) for band, value in shares.items()},
         }
@@ -108,13 +143,13 @@ def analyze_masking(paths: list[str], min_band_share: float = 0.15) -> dict[str,
         "bands_hz": {name: [low, high] for name, low, high in BANDS},
         "tracks": summary,
         "pairs_by_overlap": pairs,
-        "crowded_band": max(combined, key=lambda band: combined[band]),
+        "crowded_band": _peak_band(combined),
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Report frequency-band overlap between captured stems (e.g. AgentAudioTap WAVs).")
-    parser.add_argument("files", nargs="+", help="PCM WAV files, one per track (16/24/32-bit).")
+    parser.add_argument("files", nargs="+", help="WAV files, one per track (PCM 16/24/32-bit or float 32/64-bit).")
     parser.add_argument("--min-band-share", type=float, default=0.15, help="Min share of a track's energy for a band to count as shared.")
     args = parser.parse_args(argv)
     print(json.dumps(analyze_masking(args.files, args.min_band_share), indent=2))
