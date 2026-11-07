@@ -199,3 +199,56 @@ def test_fetch_model_cli_downloads_and_exits(monkeypatch, capsys):
 
     assert calls == [("small", False)]
     assert '"path": "/models/small"' in capsys.readouterr().out
+
+
+def test_transcribe_retries_on_cpu_when_cuda_runtime_missing(tmp_path, monkeypatch):
+    import sys
+    import types
+
+    source = tmp_path / "take.wav"
+    make_wav(source)
+    calls: list = []
+    _install_fake_faster_whisper(monkeypatch, calls, cached=True)
+    package = sys.modules["faster_whisper"]
+    base_model = package.WhisperModel
+
+    class CudaBrokenModel(base_model):
+        def __init__(self, path, device="auto", compute_type="default"):
+            super().__init__(path)
+            self.device = device
+
+        def transcribe(self, _path):
+            if self.device == "auto":
+                raise RuntimeError("Library cublas64_12.dll is not found or cannot be loaded")
+            segment = types.SimpleNamespace(start=0.0, end=1.0, text=" hi ")
+            return [segment], types.SimpleNamespace(language="en")
+
+    package.WhisperModel = CudaBrokenModel
+
+    assert prep_vocal_sample({"file_path": str(source)})["transcript"] == "hi"
+
+
+def test_transcribe_does_not_swallow_unrelated_runtime_errors(tmp_path, monkeypatch):
+    import sys
+
+    source = tmp_path / "take.wav"
+    make_wav(source)
+    _install_fake_faster_whisper(monkeypatch, [], cached=True)
+
+    def boom(self, _path):
+        raise RuntimeError("something else")
+
+    monkeypatch.setattr(sys.modules["faster_whisper"].WhisperModel, "transcribe", boom)
+
+    with pytest.raises(RuntimeError, match="something else"):
+        prep_vocal_sample({"file_path": str(source)})
+
+
+def test_cli_reports_uncached_model_without_traceback(tmp_path, monkeypatch, capsys):
+    source = tmp_path / "take.wav"
+    make_wav(source)
+    _install_fake_faster_whisper(monkeypatch, [], cached=False)
+
+    assert main([str(source), "--transcribe"]) == 1
+
+    assert "--fetch-model --model base" in capsys.readouterr().err

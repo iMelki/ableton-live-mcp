@@ -18,7 +18,8 @@ yet follow semantic version tags.
 - `live_prep_vocal_sample` no longer silently blocks on a first-use faster-whisper
   model download: if the model isn't cached it raises an error naming the fix
   (`python src/vocal_prep.py --fetch-model --model base`, or `"allow_download": true`).
-  New `--fetch-model` / `--allow-download` CLI flags.
+  New `--fetch-model` / `--allow-download` CLI flags. Transcription retries on CPU (int8)
+  when faster-whisper auto-picks CUDA but the CUDA runtime (cuBLAS) is missing.
 - `AGENTS.md`: sidechain, DJ crossfader/macro, external-instrument and Videosync
   recipes, explicitly marked unverified until `recipe_check.py` passes on a real Live.
 
