@@ -20,6 +20,11 @@ yet follow semantic version tags.
   (`python src/vocal_prep.py --fetch-model --model base`, or `"allow_download": true`).
   New `--fetch-model` / `--allow-download` CLI flags. Transcription retries on CPU (int8)
   when faster-whisper auto-picks CUDA but the CUDA runtime (cuBLAS) is missing.
+- `src/mix_analysis.py` (`python src/mix_analysis.py a.wav b.wav`): offline
+  frequency-masking report for captured stems (per-band energy share, "mud" share,
+  most crowded band, track pairs ranked by spectral overlap). Needs the new `analysis`
+  extra (numpy). Implements the analysis half of README's mix-diagnosis idea; no new MCP
+  tool because `tools/list` is at its size budget.
 - `AGENTS.md`: sidechain, DJ crossfader/macro, external-instrument and Videosync
   recipes, explicitly marked unverified until `recipe_check.py` passes on a real Live.
 
