@@ -313,13 +313,18 @@ Generated hosts also expose a hidden Live parameter used only to try to wake the
 
 Trimming (`pydub`) has no external dependency beyond the `vocals`/`dev`
 extra. Transcription (`faster-whisper`, only imported if `transcribe` isn't
-explicitly `False`) downloads its model from Hugging Face Hub on first use
-per `model` size (default `"base"`) and caches it locally (`~/.cache/huggingface`
-by default, or wherever `HF_HOME`/`HUGGINGFACE_HUB_CACHE` point) — this
-means the *first* call with a given model size needs network access and
-takes noticeably longer than subsequent calls. For an offline environment,
-pre-fetch the model once with network access before relying on this tool,
-or pass `"transcribe": false` to only trim.
+explicitly `False`) needs its model from Hugging Face Hub, cached locally
+(`~/.cache/huggingface` by default, or wherever `HF_HOME`/`HUGGINGFACE_HUB_CACHE`
+point). The tool never downloads implicitly: if the `model` size (default
+`"base"`) isn't cached it fails fast with an error naming the fix, instead of
+blocking an MCP call for minutes. Fetch once with network access:
+
+```sh
+python src/vocal_prep.py --fetch-model --model base   # --model picks the size
+```
+
+or pass `"allow_download": true` for a one-off download inside the call. For
+offline use, pre-fetch, or pass `"transcribe": false` to only trim.
 
 ## Composing a chord track for an existing melody
 
@@ -388,3 +393,50 @@ project already takes the "tool schema silently drifts" bug class
 seriously via a different mechanism than `tests/test_schema_consistency.py`.
 Adopting mypy cleanly needs a dedicated pass to verify and fix each finding
 individually, not something to fold into an unrelated change.
+
+## Recipes verified by `src/recipe_check.py` (unverified until you run it)
+
+These recipes are composed from existing generic tools and were *not* tested
+against a real Ableton Live by whoever wrote them. Run
+`python src/recipe_check.py --yes` with Live open (use a disposable set: it
+creates and deletes throwaway tracks named `MCP Verify <token> ...`) and it prints,
+per recipe, pass/fail/skip plus the raw values your Live returned. If a step
+fails or reports `partial`, fix the recipe text below to match what your Live
+actually does rather than trusting this text.
+
+- **Sidechain compression** (e.g. "sidechain my bass to the kick"): insert a
+  `Compressor` on the bass track with `live_track_insert_device`; find its
+  sidechain parameters with `live_device_parameters` (query `S/C`) and turn on
+  `S/C On` with `live_parameter_set`; then select the kick track as the
+  sidechain source via the Compressor's input routing (`live_exec`: inspect
+  `device.available_input_routing_types`, pick the entry whose `display_name`
+  is the kick track's name, assign it to `device.input_routing_type`). The
+  routing property path is the least certain part and varies by Live version.
+- **DJ crossfader / performance macros:** `live_set` with ref
+  `{"path": "live_set tracks N mixer_device"}`, property `crossfade_assign`.
+  The numeric meaning of the values is not assumed here: the check sets
+  0, 1, 2 and reports what Live reads back. A macro is an ordinary
+  `DeviceParameter` (`Macro 1`...) on an Audio Effect Rack, reachable with
+  `live_device_parameters` + `live_parameter_set`; mapping a macro onto nested
+  device parameters has no dedicated tool (use `live_exec`).
+- **External hardware synth:** list a track's `available_output_routing_types`
+  with `live_exec`, and insert the `External Instrument` device with
+  `live_track_insert_device`. Sending raw MIDI CC/Program Change that isn't in
+  a clip is not supported by any current tool.
+- **Videosync / VJ:** `live_browser_search` for `Videosync`; if found, load it
+  and drive its parameters like any other device. The check only confirms
+  whether it is installed and indexed.
+- **Chord track:** see the chord-track section above; the check confirms the
+  read-notes / write-notes mechanics round-trip on your Live.
+
+## Trying `live_prep_vocal_sample` on real takes
+
+```sh
+python src/vocal_prep.py path/to/take.wav --sweep        # read-only: ms removed per silence threshold
+python src/vocal_prep.py path/to/take.wav --silence-thresh-db -45 --output-dir /tmp/trimmed
+python src/vocal_prep.py path/to/take.wav --transcribe   # needs: pip install -e ".[vocals]"
+```
+
+Use `--sweep` on a few real takes (clean, breathy, noisy) and pick the
+threshold that trims silence without clipping word onsets/tails. The tool's
+default (`-40` dB) has only ever been exercised on synthetic audio.
