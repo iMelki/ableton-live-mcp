@@ -20,6 +20,15 @@ def trim_silence(segment: Any, silence_thresh_db: float = -40.0, chunk_size_ms: 
     return segment[start_trim : duration - end_trim]
 
 
+def split_phrases(segment: Any, silence_thresh_db: float = -40.0, min_silence_ms: int = 400, keep_silence_ms: int = 100) -> list[tuple[int, int]]:
+    """Return (start_ms, end_ms) for each phrase separated by pauses of at least `min_silence_ms`."""
+    from pydub.silence import detect_nonsilent
+
+    spans = detect_nonsilent(segment, min_silence_len=min_silence_ms, silence_thresh=silence_thresh_db)
+    duration = len(segment)
+    return [(max(0, start - keep_silence_ms), min(duration, end + keep_silence_ms)) for start, end in spans]
+
+
 class ModelNotCachedError(RuntimeError):
     """The faster-whisper model isn't cached locally and downloading wasn't allowed."""
 
@@ -95,6 +104,20 @@ def prep_vocal_sample(params: dict[str, Any] | None = None, transcribe_fn: Trans
         "trimmed_duration_ms": len(segment),
     }
 
+    if params.get("split_on_silence"):
+        spans = split_phrases(
+            segment,
+            silence_thresh_db=float(params.get("silence_thresh_db", -40.0)),
+            min_silence_ms=int(params.get("min_silence_ms", 400)),
+            keep_silence_ms=int(params.get("keep_silence_ms", 100)),
+        )
+        clips = []
+        for index, (start, end) in enumerate(spans, start=1):
+            clip_path = output_dir / ("%s.%03d.wav" % (source.stem, index))
+            segment[start:end].export(clip_path, format="wav")
+            clips.append({"path": str(clip_path), "start_ms": start, "end_ms": end, "duration_ms": end - start})
+        result["clips"] = clips
+
     if params.get("transcribe", True):
         transcribe = transcribe_fn or _default_transcriber(str(params.get("model", "base")), bool(params.get("allow_download", False)))
         transcription = transcribe(trimmed_path)
@@ -127,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allow-download", action="store_true", help="With --transcribe, download the model if it isn't cached yet.")
     parser.add_argument("--sweep", action="store_true", help="Only report how much each silence threshold would trim; writes nothing.")
     parser.add_argument("--silence-thresh-db", type=float, default=-40.0)
+    parser.add_argument("--split", action="store_true", help="Also write one WAV per phrase, cut at pauses (see --min-silence-ms).")
+    parser.add_argument("--min-silence-ms", type=int, default=400, help="With --split, the shortest pause that separates phrases.")
     parser.add_argument("--output-dir")
     parser.add_argument("--transcribe", action="store_true", help="Also transcribe (needs the 'vocals' extra: pip install -e '.[vocals]').")
     parser.add_argument("--model", default="base", help="faster-whisper model size, e.g. tiny/base/small.")
@@ -140,7 +165,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.sweep:
         result = threshold_sweep(args.file)
     else:
-        params: dict[str, Any] = {"file_path": args.file, "silence_thresh_db": args.silence_thresh_db, "transcribe": args.transcribe, "model": args.model, "allow_download": args.allow_download}
+        params: dict[str, Any] = {
+            "file_path": args.file,
+            "silence_thresh_db": args.silence_thresh_db,
+            "transcribe": args.transcribe,
+            "model": args.model,
+            "allow_download": args.allow_download,
+            "split_on_silence": args.split,
+            "min_silence_ms": args.min_silence_ms,
+        }
         if args.output_dir:
             params["output_dir"] = args.output_dir
         try:

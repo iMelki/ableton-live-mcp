@@ -416,7 +416,8 @@ Trim silence from a vocal sample and transcribe it.
 | `silence_thresh_db` | number |  |  |
 | `transcribe` | boolean |  |  |
 | `model` | string |  | faster-whisper model size, e.g. tiny/base/small. |
-| `allow_download` | boolean |  | Download uncached model (slow). |
+| `allow_download` | boolean |  | Download model. |
+| `split_on_silence` | boolean |  | One WAV per phrase. |
 
 ## `live_eval`
 

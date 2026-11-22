@@ -326,6 +326,14 @@ python src/vocal_prep.py --fetch-model --model base   # --model picks the size
 or pass `"allow_download": true` for a one-off download inside the call. For
 offline use, pre-fetch, or pass `"transcribe": false` to only trim.
 
+To turn one take into several one-shots, pass `"split_on_silence": true` (CLI:
+`--split`). It also writes one WAV per phrase next to the trimmed file
+(`take.001.wav`, `take.002.wav`, ...) and returns `clips` with each start/end in ms,
+ready for `live_track_create_audio_clip`. Pauses of at least `min_silence_ms`
+(default 400, CLI `--min-silence-ms`) separate phrases; `keep_silence_ms`
+(default 100) is padding kept on each side. Tune `silence_thresh_db` with `--sweep`.
+Not yet judged by ear on real vocals.
+
 ## Composing a chord track for an existing melody
 
 No dedicated tool for this — it doesn't need one. Read the melody with
