@@ -7,6 +7,8 @@ yet follow semantic version tags.
 ## [Unreleased]
 
 ### Added
+- `live_prep_vocal_sample` `split_on_silence` (CLI `--split`): cuts a take at
+  pauses into one WAV per phrase and returns each clip's start/end.
 - `src/recipe_check.py` (`python src/recipe_check.py --yes`): runs the documented
   sidechain, chord-track, DJ crossfader/macro, external-instrument-routing and
   Videosync-presence recipes against a *running* Ableton Live set, creating

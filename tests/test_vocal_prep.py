@@ -252,3 +252,59 @@ def test_cli_reports_uncached_model_without_traceback(tmp_path, monkeypatch, cap
     assert main([str(source), "--transcribe"]) == 1
 
     assert "--fetch-model --model base" in capsys.readouterr().err
+
+
+def make_two_phrase_wav(path: Path, frame_rate: int = 16000) -> None:
+    def silence(ms):
+        return [0] * int(frame_rate * ms / 1000)
+
+    def tone(ms):
+        return [8000 if i % 20 < 10 else -8000 for i in range(int(frame_rate * ms / 1000))]
+
+    samples = silence(300) + tone(200) + silence(800) + tone(300) + silence(300)
+    with wave.open(str(path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(frame_rate)
+        handle.writeframes(struct.pack("<%dh" % len(samples), *samples))
+
+
+def test_split_on_silence_writes_one_clip_per_phrase(tmp_path):
+    source = tmp_path / "take.wav"
+    make_two_phrase_wav(source)
+
+    result = prep_vocal_sample({"file_path": str(source), "transcribe": False, "split_on_silence": True, "output_dir": str(tmp_path / "out")})
+
+    clips = result["clips"]
+    assert len(clips) == 2
+    assert [Path(c["path"]).name for c in clips] == ["take.001.wav", "take.002.wav"]
+    assert all(Path(c["path"]).exists() for c in clips)
+    assert clips[0]["end_ms"] <= clips[1]["start_ms"] + 200
+    assert 150 < clips[0]["duration_ms"] < 500
+    assert 250 < clips[1]["duration_ms"] < 600
+
+
+def test_split_keeps_one_clip_when_pause_is_shorter_than_min_silence(tmp_path):
+    source = tmp_path / "take.wav"
+    make_two_phrase_wav(source)
+
+    result = prep_vocal_sample({"file_path": str(source), "transcribe": False, "split_on_silence": True, "min_silence_ms": 1500})
+
+    assert len(result["clips"]) == 1
+
+
+def test_split_is_off_by_default(tmp_path):
+    source = tmp_path / "take.wav"
+    make_two_phrase_wav(source)
+
+    assert "clips" not in prep_vocal_sample({"file_path": str(source), "transcribe": False})
+
+
+def test_cli_split_prints_clips(tmp_path, capsys):
+    import json
+
+    source = tmp_path / "take.wav"
+    make_two_phrase_wav(source)
+
+    assert main([str(source), "--split", "--output-dir", str(tmp_path / "o")]) == 0
+    assert len(json.loads(capsys.readouterr().out)["clips"]) == 2
